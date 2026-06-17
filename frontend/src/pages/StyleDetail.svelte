@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createQuery, createMutation, createQueryClient } from '@tanstack/svelte-query';
+  import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-query';
   import RouterLink from '../components/RouterLink.svelte';
   import { Badge, Spinner, Alert, Card, Button } from 'flowbite-svelte';
   import { fetchHousenoStyle, fetchFavorites, addFavorite, removeFavorite } from '../lib/api';
@@ -14,13 +14,13 @@
   const isValidId = $derived(/^\d+$/.test(id));
   const numericId = $derived(parseInt(id, 10));
 
-  const queryClient = createQueryClient();
+  const queryClient = useQueryClient();
 
-  const styleQuery = createQuery(() => ({
+  const styleQuery = createQuery({
     queryKey: ['houseno-style', id],
     queryFn: () => fetchHousenoStyle(parseInt(id, 10)),
-    enabled: /^\d+$/.test(id),
-  }));
+    enabled: isValidId,
+  });
 
   const favoritesQuery = createQuery({
     queryKey: ['favorites'],
@@ -31,19 +31,19 @@
     ($favoritesQuery.data ?? []).some((fav) => fav.styleId === numericId),
   );
 
-  const addMutation = createMutation(() => ({
+  const addMutation = createMutation({
     mutationFn: () => addFavorite(numericId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
     },
-  }));
+  });
 
-  const removeMutation = createMutation(() => ({
+  const removeMutation = createMutation({
     mutationFn: () => removeFavorite(numericId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
     },
-  }));
+  });
 
   const styleData = $derived($styleQuery.data as HousenoStyle | undefined);
 </script>
@@ -73,13 +73,13 @@
         {#if style.unifiedReplacement}
           <Badge color="green" large>已统一更换</Badge>
         {:else}
-          <Badge color="gray" large>未统一更换</Badge>
+          <Badge color="dark" large>未统一更换</Badge>
         {/if}
         {#if isFavorited}
           <Button
             size="sm"
             color="red"
-            onclick={() => removeMutation.mutate()}
+            onclick={() => $removeMutation.mutate()}
             disabled={$removeMutation.isPending}
           >
             ⭐ 已收藏
@@ -88,7 +88,7 @@
           <Button
             size="sm"
             color="yellow"
-            onclick={() => addMutation.mutate()}
+            onclick={() => $addMutation.mutate()}
             disabled={$addMutation.isPending}
           >
             ☆ 收藏
@@ -119,7 +119,7 @@
             {#if style.unifiedReplacement}
               <Badge color="green">是</Badge>
             {:else}
-              <Badge color="gray">否</Badge>
+              <Badge color="dark">否</Badge>
             {/if}
           </dd>
         </div>

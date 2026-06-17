@@ -19,14 +19,18 @@ interface StyleDbRow {
   unified_replacement: number;
 }
 
+function formatDate(value: string | number): string {
+  if (typeof value === 'number') {
+    return new Date(value * 1000).toISOString().replace('T', ' ').slice(0, 19);
+  }
+  return value;
+}
+
 function rowToFavorite(row: FavoriteDbRow): Favorite {
-  const createdAt = typeof row.created_at === 'number'
-    ? new Date(row.created_at * 1000).toISOString().replace('T', ' ').slice(0, 19)
-    : row.created_at;
   return {
     id: row.id,
     styleId: row.style_id,
-    createdAt,
+    createdAt: formatDate(row.created_at),
   };
 }
 
@@ -63,7 +67,7 @@ router.get('/', (_req: Request, res: Response) => {
   const result: FavoriteWithStyle[] = rows.map((row) => ({
     id: row.id,
     styleId: row.style_id,
-    createdAt: row.created_at,
+    createdAt: formatDate(row.created_at),
     style: {
       id: row.s_id,
       cityDistrict: row.city_district,

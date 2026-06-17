@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createQuery, createMutation, createQueryClient } from '@tanstack/svelte-query';
+  import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-query';
   import RouterLink from '../components/RouterLink.svelte';
   import {
     Table,
@@ -15,22 +15,22 @@
   } from 'flowbite-svelte';
   import { fetchFavorites, removeFavorite } from '../lib/api';
 
-  const queryClient = createQueryClient();
+  const queryClient = useQueryClient();
 
   const favoritesQuery = createQuery({
     queryKey: ['favorites'],
     queryFn: fetchFavorites,
   });
 
-  const removeMutation = createMutation(() => ({
+  const removeMutation = createMutation({
     mutationFn: (styleId: number) => removeFavorite(styleId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
     },
-  }));
+  });
 
   function handleRemove(styleId: number) {
-    removeMutation.mutate(styleId);
+    $removeMutation.mutate(styleId);
   }
 </script>
 
@@ -81,7 +81,7 @@
                 {#if fav.style.unifiedReplacement}
                   <Badge color="green">是</Badge>
                 {:else}
-                  <Badge color="gray">否</Badge>
+                  <Badge color="dark">否</Badge>
                 {/if}
               </TableBodyCell>
               <TableBodyCell class="whitespace-nowrap text-sm text-gray-500">

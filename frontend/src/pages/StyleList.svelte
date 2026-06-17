@@ -67,7 +67,7 @@
                 {#if style.unifiedReplacement}
                   <Badge color="green">是</Badge>
                 {:else}
-                  <Badge color="gray">否</Badge>
+                  <Badge color="dark">否</Badge>
                 {/if}
               </TableBodyCell>
               <TableBodyCell>
