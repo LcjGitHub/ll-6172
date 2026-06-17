@@ -4,6 +4,7 @@ import housenoStylesRouter from './routes/housenoStyles';
 import favoritesRouter from './routes/favorites';
 import materialsRouter from './routes/materials';
 import statisticsRouter from './routes/statistics';
+import visitRecordsRouter from './routes/visitRecords';
 import './seed';
 
 /**
@@ -23,6 +24,7 @@ export function createApp() {
   app.use('/api/favorites', favoritesRouter);
   app.use('/api/materials', materialsRouter);
   app.use('/api/statistics', statisticsRouter);
+  app.use('/api/visit-records', visitRecordsRouter);
 
   return app;
 }

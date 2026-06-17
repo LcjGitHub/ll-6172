@@ -40,6 +40,24 @@ export interface ReplacementStatus {
   notUnified: number;
 }
 
+/** 实地探访记录 */
+export interface VisitRecord {
+  id: number;
+  styleId: number;
+  visitDate: string;
+  locationNotes: string;
+  plateVisible: boolean;
+  createdAt: string;
+}
+
+/** 新增探访记录时的输入 */
+export interface VisitRecordInput {
+  styleId: number;
+  visitDate: string;
+  locationNotes: string;
+  plateVisible: boolean;
+}
+
 /** 数据概览统计 */
 export interface StatisticsOverview {
   totalStyles: number;

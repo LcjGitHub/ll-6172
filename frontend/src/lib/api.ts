@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { HousenoStyle, Favorite, FavoriteWithStyle, Material, StatisticsOverview } from './types';
+import type { HousenoStyle, Favorite, FavoriteWithStyle, Material, StatisticsOverview, VisitRecord, VisitRecordInput } from './types';
 
 const api = axios.create({
   baseURL: '/api',
@@ -50,5 +50,17 @@ export async function fetchMaterial(id: number): Promise<Material> {
 /** 获取数据概览统计 */
 export async function fetchStatisticsOverview(): Promise<StatisticsOverview> {
   const { data } = await api.get<StatisticsOverview>('/statistics/overview');
+  return data;
+}
+
+/** 按样式查询探访记录列表 */
+export async function fetchVisitRecords(styleId: number): Promise<VisitRecord[]> {
+  const { data } = await api.get<VisitRecord[]>(`/visit-records/style/${styleId}`);
+  return data;
+}
+
+/** 新增一条探访记录 */
+export async function createVisitRecord(input: VisitRecordInput): Promise<VisitRecord> {
+  const { data } = await api.post<VisitRecord>('/visit-records', input);
   return data;
 }

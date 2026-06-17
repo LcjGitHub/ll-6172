@@ -62,6 +62,22 @@ export function createDatabase(customPath?: string): DbInstance {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_materials_name ON materials(name)
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS visit_records (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      style_id INTEGER NOT NULL,
+      visit_date TEXT NOT NULL,
+      location_notes TEXT NOT NULL DEFAULT '',
+      plate_visible INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (style_id) REFERENCES houseno_styles(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_visit_records_style_id ON visit_records(style_id)
+  `);
+
   return db;
 }
 
