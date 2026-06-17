@@ -28,7 +28,7 @@ router.get('/style/:styleId', (req: Request, res: Response) => {
   const styleId = parseInt(req.params.styleId, 10);
 
   if (isNaN(styleId)) {
-    res.status(400).json({ error: '无效的 styleId' });
+    res.status(400).json({ error: '无效的样式编号' });
     return;
   }
 
@@ -52,22 +52,22 @@ router.post('/', (req: Request, res: Response) => {
   const { styleId, visitDate, locationNotes, plateVisible } = req.body;
 
   if (!styleId || typeof styleId !== 'number') {
-    res.status(400).json({ error: 'styleId 为必填数字字段' });
+    res.status(400).json({ error: '样式编号为必填项' });
     return;
   }
 
   if (!visitDate || typeof visitDate !== 'string') {
-    res.status(400).json({ error: 'visitDate 为必填字符串字段' });
+    res.status(400).json({ error: '探访日期为必填项' });
     return;
   }
 
   if (typeof locationNotes !== 'string') {
-    res.status(400).json({ error: 'locationNotes 为必填字符串字段' });
+    res.status(400).json({ error: '地点备注格式不正确' });
     return;
   }
 
   if (typeof plateVisible !== 'boolean') {
-    res.status(400).json({ error: 'plateVisible 为必填布尔字段' });
+    res.status(400).json({ error: '是否可见门牌格式不正确' });
     return;
   }
 

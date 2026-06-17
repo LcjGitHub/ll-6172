@@ -91,8 +91,8 @@
       queryClient.invalidateQueries({ queryKey: ['visit-records', id] });
       resetForm();
     },
-    onError: (err: unknown) => {
-      formError = getErrorMsg(err);
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['visit-records', id] });
     },
   });
 
@@ -102,7 +102,7 @@
       formError = '探访日期为必填项';
       return;
     }
-    addVisitMutation.mutate();
+    $addVisitMutation.mutate();
   }
 </script>
 
@@ -244,6 +244,10 @@
         <div class="mt-6">
           <h4 class="mb-3 text-base font-medium text-gray-700">新增探访记录</h4>
 
+          {#if $addVisitMutation.isSuccess}
+            <Alert color="green" class="mb-3">探访记录已添加</Alert>
+          {/if}
+
           {#if formError}
             <Alert color="red" class="mb-3">{formError}</Alert>
           {/if}
@@ -286,7 +290,7 @@
               <Button
                 size="sm"
                 color="amber"
-                onclick={handleAddVisit}
+                onclick={() => handleAddVisit()}
                 disabled={$addVisitMutation.isPending}
               >
                 {#if $addVisitMutation.isPending}
