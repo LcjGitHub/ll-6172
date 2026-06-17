@@ -52,3 +52,20 @@ export function isStyleList(path: string): boolean {
 export function isFavorites(path: string): boolean {
   return path === '/favorites';
 }
+
+/**
+ * 从路径解析材质编号。
+ * @param path - 当前路径
+ */
+export function parseMaterialId(path: string): string | null {
+  const match = path.match(/^\/materials\/(\d+)$/);
+  return match ? match[1] : null;
+}
+
+/**
+ * 判断是否为材质列表页。
+ * @param path - 当前路径
+ */
+export function isMaterialList(path: string): boolean {
+  return path === '/materials';
+}

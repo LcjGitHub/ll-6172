@@ -39,19 +39,48 @@ export const SEED_DATA = [
   },
 ];
 
+export const MATERIAL_SEED_DATA = [
+  {
+    name: '铸铁',
+    commonUses: '老式门牌号、街道牌、公共标识牌，具有强烈的历史感和耐久性',
+    careTips: '定期用软布擦拭除尘，避免潮湿环境以防生锈；如出现锈迹，可用细砂纸轻轻打磨后喷涂防锈漆',
+  },
+  {
+    name: '实木',
+    commonUses: '传统民居门牌、庭院标识、老字号店铺招牌，自然质感温暖',
+    careTips: '避免阳光直射和雨淋，定期涂刷木蜡油或清漆保养；保持干燥，防止霉变和虫蛀',
+  },
+  {
+    name: '搪瓷',
+    commonUses: '近代租界区门牌号、路牌、号码牌，色彩鲜明且易清洁',
+    careTips: '用软布蘸温和清洁剂擦拭，避免硬物刮划表面；防止撞击导致瓷面脱落',
+  },
+  {
+    name: '黄铜',
+    commonUses: '高档住宅门牌、别墅标识、艺术门牌，具有尊贵的金属质感',
+    careTips: '使用专用黄铜清洁剂定期抛光，避免接触酸性物质；氧化变暗时可用柠檬加盐擦拭',
+  },
+  {
+    name: '石材',
+    commonUses: '历史建筑门牌、纪念性标识、永久性铭牌，庄重且经久耐用',
+    careTips: '定期用清水冲洗，避免强酸强碱腐蚀；表面如有污渍可用中性清洁剂配合软刷清理',
+  },
+];
+
 /**
  * 向空库写入种子数据。
  * @param database - 数据库实例
  * @param force - 是否强制清空后重新插入
  */
-export function seedDatabase(database: DbInstance, force = false): { styles: number } {
+export function seedDatabase(database: DbInstance, force = false): { styles: number; materials: number } {
   let insertedStyles = 0;
+  let insertedMaterials = 0;
 
-  const count = database
+  const styleCount = database
     .prepare('SELECT COUNT(*) as count FROM houseno_styles')
     .get() as { count: number };
 
-  if (force || count.count === 0) {
+  if (force || styleCount.count === 0) {
     if (force) {
       database.exec('DELETE FROM houseno_styles');
     }
@@ -64,7 +93,7 @@ export function seedDatabase(database: DbInstance, force = false): { styles: num
       )
     `);
 
-    const insertMany = database.transaction((items: typeof SEED_DATA) => {
+    const insertManyStyles = database.transaction((items: typeof SEED_DATA) => {
       for (const item of items) {
         insertStyle.run({
           ...item,
@@ -74,15 +103,45 @@ export function seedDatabase(database: DbInstance, force = false): { styles: num
       }
     });
 
-    insertMany(SEED_DATA);
+    insertManyStyles(SEED_DATA);
   }
 
-  return { styles: insertedStyles };
+  const materialCount = database
+    .prepare('SELECT COUNT(*) as count FROM materials')
+    .get() as { count: number };
+
+  if (force || materialCount.count === 0) {
+    if (force) {
+      database.exec('DELETE FROM materials');
+    }
+
+    const insertMaterial = database.prepare(`
+      INSERT INTO materials (
+        name, common_uses, care_tips
+      ) VALUES (
+        @name, @commonUses, @careTips
+      )
+    `);
+
+    const insertManyMaterials = database.transaction((items: typeof MATERIAL_SEED_DATA) => {
+      for (const item of items) {
+        insertMaterial.run(item);
+        insertedMaterials++;
+      }
+    });
+
+    insertManyMaterials(MATERIAL_SEED_DATA);
+  }
+
+  return { styles: insertedStyles, materials: insertedMaterials };
 }
 
 if (require.main === undefined || !process.env.DISABLE_AUTO_SEED) {
   const result = seedDatabase(db);
   if (result.styles > 0) {
     console.log(`[seed] 已插入 ${result.styles} 条门牌号样式数据`);
+  }
+  if (result.materials > 0) {
+    console.log(`[seed] 已插入 ${result.materials} 条材质百科数据`);
   }
 }

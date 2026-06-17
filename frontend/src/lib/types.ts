@@ -19,3 +19,11 @@ export interface Favorite {
 export interface FavoriteWithStyle extends Favorite {
   style: HousenoStyle;
 }
+
+/** 材质百科 */
+export interface Material {
+  id: number;
+  name: string;
+  commonUses: string;
+  careTips: string;
+}

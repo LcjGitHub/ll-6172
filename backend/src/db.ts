@@ -49,6 +49,15 @@ export function createDatabase(customPath?: string): DbInstance {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_style_id ON favorites(style_id)
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS materials (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      common_uses TEXT NOT NULL,
+      care_tips TEXT NOT NULL
+    )
+  `);
+
   return db;
 }
 

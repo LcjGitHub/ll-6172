@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import housenoStylesRouter from './routes/housenoStyles';
 import favoritesRouter from './routes/favorites';
+import materialsRouter from './routes/materials';
 import './seed';
 
 /**
@@ -19,6 +20,7 @@ export function createApp() {
 
   app.use('/api/houseno-styles', housenoStylesRouter);
   app.use('/api/favorites', favoritesRouter);
+  app.use('/api/materials', materialsRouter);
 
   return app;
 }
