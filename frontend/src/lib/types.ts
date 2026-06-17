@@ -27,3 +27,22 @@ export interface Material {
   commonUses: string;
   careTips: string;
 }
+
+/** 材质数量分布 */
+export interface MaterialDistribution {
+  material: string;
+  count: number;
+}
+
+/** 统一更换状态对比 */
+export interface ReplacementStatus {
+  unified: number;
+  notUnified: number;
+}
+
+/** 数据概览统计 */
+export interface StatisticsOverview {
+  totalStyles: number;
+  materialDistribution: MaterialDistribution[];
+  replacementStatus: ReplacementStatus;
+}

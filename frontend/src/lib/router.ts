@@ -77,3 +77,11 @@ export function isMaterialList(path: string): boolean {
 export function isMaterialDetail(path: string): boolean {
   return /^\/materials\/.+/.test(path);
 }
+
+/**
+ * 判断是否为数据概览页。
+ * @param path - 当前路径
+ */
+export function isOverview(path: string): boolean {
+  return path === '/overview';
+}

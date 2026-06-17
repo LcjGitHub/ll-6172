@@ -7,7 +7,8 @@
   import FavoriteList from './pages/FavoriteList.svelte';
   import MaterialList from './pages/MaterialList.svelte';
   import MaterialDetail from './pages/MaterialDetail.svelte';
-  import { initRouter, parseStyleId, isStyleList, isFavorites, parseMaterialId, isMaterialList, isMaterialDetail, pathname } from './lib/router';
+  import Overview from './pages/Overview.svelte';
+  import { initRouter, parseStyleId, isStyleList, isFavorites, parseMaterialId, isMaterialList, isMaterialDetail, isOverview, pathname } from './lib/router';
 
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -31,6 +32,12 @@
             <p class="mt-1 text-sm text-gray-500">记录各地老门牌的材质、字体与编号规则</p>
           </div>
           <div class="flex items-center gap-2">
+            <RouterLink
+              to="/overview"
+              class="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-sm font-medium transition {isOverview($pathname) ? 'border-blue-500 bg-blue-200 text-blue-900' : 'border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100'}"
+            >
+              📊 数据概览
+            </RouterLink>
             <RouterLink
               to="/materials"
               class="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-sm font-medium transition {isMaterialList($pathname) || parseMaterialId($pathname) ? 'border-emerald-500 bg-emerald-200 text-emerald-900' : 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'}"
@@ -59,6 +66,8 @@
         {/key}
       {:else if isMaterialDetail($pathname)}
         <MaterialDetail id={$pathname.replace(/^\/materials\//, '')} />
+      {:else if isOverview($pathname)}
+        <Overview />
       {:else if isFavorites($pathname)}
         <FavoriteList />
       {:else if isMaterialList($pathname)}
