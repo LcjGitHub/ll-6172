@@ -43,7 +43,6 @@
           <TableHeadCell>字体</TableHeadCell>
           <TableHeadCell>编号规则</TableHeadCell>
           <TableHeadCell>统一更换</TableHeadCell>
-          <TableHeadCell>操作</TableHeadCell>
         </TableHead>
         <TableBody>
           {#each $stylesQuery.data ?? [] as style (style.id)}
@@ -69,11 +68,6 @@
                 {:else}
                   <Badge color="dark">否</Badge>
                 {/if}
-              </TableBodyCell>
-              <TableBodyCell>
-                <RouterLink to="/styles/{style.id}">
-                  <Button size="xs" color="light">详情</Button>
-                </RouterLink>
               </TableBodyCell>
             </TableBodyRow>
           {/each}

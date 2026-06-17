@@ -36,6 +36,9 @@
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
     },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['favorites'] });
+    },
   });
 
   const removeMutation = createMutation({
@@ -43,7 +46,18 @@
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
     },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['favorites'] });
+    },
   });
+
+  function getErrorMsg(err: unknown): string {
+    if (err && typeof err === 'object' && 'response' in err) {
+      const resp = (err as { response?: { data?: { error?: string } } }).response;
+      if (resp?.data?.error) return resp.data.error;
+    }
+    return '操作失败，请稍后重试';
+  }
 
   const styleData = $derived($styleQuery.data as HousenoStyle | undefined);
 </script>
@@ -66,6 +80,16 @@
     <Alert color="red">样式不存在或后端未启动</Alert>
   {:else if styleData}
     {@const style = styleData}
+
+    {#if $addMutation.error || $removeMutation.error}
+      <Alert color="red">
+        {#if $addMutation.error}
+          收藏失败：{getErrorMsg($addMutation.error)}
+        {:else if $removeMutation.error}
+          取消收藏失败：{getErrorMsg($removeMutation.error)}
+        {/if}
+      </Alert>
+    {/if}
 
     <div class="flex items-center justify-between">
       <h2 class="text-lg font-semibold text-gray-800">{style.cityDistrict}</h2>

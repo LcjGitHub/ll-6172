@@ -27,7 +27,18 @@
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
     },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['favorites'] });
+    },
   });
+
+  function getErrorMsg(err: unknown): string {
+    if (err && typeof err === 'object' && 'response' in err) {
+      const resp = (err as { response?: { data?: { error?: string } } }).response;
+      if (resp?.data?.error) return resp.data.error;
+    }
+    return '操作失败，请稍后重试';
+  }
 
   function handleRemove(styleId: number) {
     $removeMutation.mutate(styleId);
@@ -48,6 +59,12 @@
   {:else if ($favoritesQuery.data ?? []).length === 0}
     <Alert color="yellow">暂无收藏记录，去样式列表添加收藏吧！</Alert>
   {:else}
+    {#if $removeMutation.error}
+      <Alert color="red">
+        取消收藏失败：{getErrorMsg($removeMutation.error)}
+      </Alert>
+    {/if}
+
     <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
       <Table hoverable>
         <TableHead>
@@ -87,10 +104,7 @@
               <TableBodyCell class="whitespace-nowrap text-sm text-gray-500">
                 {fav.createdAt.replace('T', ' ').slice(0, 19)}
               </TableBodyCell>
-              <TableBodyCell class="flex gap-2">
-                <RouterLink to="/styles/{fav.style.id}">
-                  <Button size="xs" color="light">详情</Button>
-                </RouterLink>
+              <TableBodyCell>
                 <Button
                   size="xs"
                   color="red"

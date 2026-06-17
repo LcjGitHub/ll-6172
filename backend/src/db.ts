@@ -39,14 +39,14 @@ export function createDatabase(customPath?: string): DbInstance {
   db.exec(`
     CREATE TABLE IF NOT EXISTS favorites (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      style_id INTEGER NOT NULL,
+      style_id INTEGER NOT NULL UNIQUE,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (style_id) REFERENCES houseno_styles(id) ON DELETE CASCADE
     )
   `);
 
   db.exec(`
-    CREATE INDEX IF NOT EXISTS idx_favorites_style_id ON favorites(style_id)
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_style_id ON favorites(style_id)
   `);
 
   return db;
