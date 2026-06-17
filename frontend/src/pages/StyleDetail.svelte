@@ -16,14 +16,10 @@
 
   const queryClient = useQueryClient();
 
-  const getId = () => id;
-  const getIsValidId = () => isValidId;
-  const getNumericId = () => numericId;
-
   const styleQuery = createQuery({
-    queryKey: () => ['houseno-style', getId()],
-    queryFn: () => fetchHousenoStyle(parseInt(getId(), 10)),
-    enabled: () => getIsValidId(),
+    queryKey: ['houseno-style', id],
+    queryFn: () => fetchHousenoStyle(parseInt(id, 10)),
+    enabled: isValidId,
   });
 
   const favoritesQuery = createQuery({
@@ -41,9 +37,9 @@
   });
 
   const styleTagsQuery = createQuery({
-    queryKey: () => ['style-tags', getId()],
-    queryFn: () => fetchStyleTags(getNumericId()),
-    enabled: () => getIsValidId(),
+    queryKey: ['style-tags', id],
+    queryFn: () => fetchStyleTags(parseInt(id, 10)),
+    enabled: isValidId,
   });
 
   const boundTagIds = $derived(
@@ -56,8 +52,14 @@
 
   let selectedTagId = $state<number | ''>('');
 
+  function handleTagSelect(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    const value = target.value;
+    selectedTagId = value === '' ? '' : parseInt(value, 10);
+  }
+
   const addMutation = createMutation({
-    mutationFn: () => addFavorite(numericId),
+    mutationFn: () => addFavorite(parseInt(id, 10)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
     },
@@ -67,7 +69,7 @@
   });
 
   const removeMutation = createMutation({
-    mutationFn: () => removeFavorite(numericId),
+    mutationFn: () => removeFavorite(parseInt(id, 10)),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['favorites'] });
     },
@@ -77,9 +79,9 @@
   });
 
   const bindTagMutation = createMutation({
-    mutationFn: (tagId: number) => bindStyleTag(numericId, tagId),
-    onSuccess: (data) => {
-      queryClient.setQueryData(['style-tags', id], data);
+    mutationFn: (tagId: number) => bindStyleTag(parseInt(id, 10), tagId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['style-tags', id] });
       selectedTagId = '';
     },
     onError: () => {
@@ -88,9 +90,9 @@
   });
 
   const unbindTagMutation = createMutation({
-    mutationFn: (tagId: number) => unbindStyleTag(numericId, tagId),
-    onSuccess: (data) => {
-      queryClient.setQueryData(['style-tags', id], data);
+    mutationFn: (tagId: number) => unbindStyleTag(parseInt(id, 10), tagId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['style-tags', id] });
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ['style-tags', id] });
@@ -108,9 +110,9 @@
   const styleData = $derived($styleQuery.data as HousenoStyle | undefined);
 
   const visitRecordsQuery = createQuery({
-    queryKey: () => ['visit-records', getId()],
-    queryFn: () => fetchVisitRecords(getNumericId()),
-    enabled: () => getIsValidId(),
+    queryKey: ['visit-records', id],
+    queryFn: () => fetchVisitRecords(parseInt(id, 10)),
+    enabled: isValidId,
   });
 
   let newVisitDate = $state('');
@@ -128,7 +130,7 @@
   const addVisitMutation = createMutation({
     mutationFn: () =>
       createVisitRecord({
-        styleId: numericId,
+        styleId: parseInt(id, 10),
         visitDate: newVisitDate,
         locationNotes: newLocationNotes,
         plateVisible: newPlateVisible,
@@ -181,12 +183,16 @@
   {:else if styleData}
     {@const style = styleData}
 
-    {#if $addMutation.error || $removeMutation.error}
+    {#if $addMutation.error || $removeMutation.error || $bindTagMutation.error || $unbindTagMutation.error}
       <Alert color="red">
         {#if $addMutation.error}
           收藏失败：{getErrorMsg($addMutation.error)}
         {:else if $removeMutation.error}
           取消收藏失败：{getErrorMsg($removeMutation.error)}
+        {:else if $bindTagMutation.error}
+          绑定标签失败：{getErrorMsg($bindTagMutation.error)}
+        {:else if $unbindTagMutation.error}
+          解除标签绑定失败：{getErrorMsg($unbindTagMutation.error)}
         {/if}
       </Alert>
     {/if}
@@ -298,7 +304,8 @@
               <div class="text-sm text-gray-500 mb-2">添加标签</div>
               <div class="flex items-center gap-2">
                 <select
-                  bind:value={selectedTagId}
+                  value={selectedTagId}
+                  onchange={handleTagSelect}
                   class="flex-1 rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
                   disabled={availableTags.length === 0 || $bindTagMutation.isPending}
                 >
