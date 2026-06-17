@@ -2,8 +2,8 @@
   import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-query';
   import RouterLink from '../components/RouterLink.svelte';
   import { Badge, Spinner, Alert, Card, Button } from 'flowbite-svelte';
-  import { fetchHousenoStyle, fetchFavorites, addFavorite, removeFavorite, fetchVisitRecords, createVisitRecord } from '../lib/api';
-  import type { HousenoStyle, VisitRecord } from '../lib/types';
+  import { fetchHousenoStyle, fetchFavorites, addFavorite, removeFavorite, fetchVisitRecords, createVisitRecord, fetchTags, fetchStyleTags, bindStyleTag, unbindStyleTag } from '../lib/api';
+  import type { HousenoStyle, VisitRecord, Tag } from '../lib/types';
 
   interface Props {
     id: string;
@@ -16,10 +16,14 @@
 
   const queryClient = useQueryClient();
 
+  const getId = () => id;
+  const getIsValidId = () => isValidId;
+  const getNumericId = () => numericId;
+
   const styleQuery = createQuery({
-    queryKey: ['houseno-style', id],
-    queryFn: () => fetchHousenoStyle(parseInt(id, 10)),
-    enabled: isValidId,
+    queryKey: () => ['houseno-style', getId()],
+    queryFn: () => fetchHousenoStyle(parseInt(getId(), 10)),
+    enabled: () => getIsValidId(),
   });
 
   const favoritesQuery = createQuery({
@@ -30,6 +34,27 @@
   const isFavorited = $derived(
     ($favoritesQuery.data ?? []).some((fav) => fav.styleId === numericId),
   );
+
+  const allTagsQuery = createQuery({
+    queryKey: ['tags'],
+    queryFn: fetchTags,
+  });
+
+  const styleTagsQuery = createQuery({
+    queryKey: () => ['style-tags', getId()],
+    queryFn: () => fetchStyleTags(getNumericId()),
+    enabled: () => getIsValidId(),
+  });
+
+  const boundTagIds = $derived(
+    new Set(($styleTagsQuery.data ?? []).map((t) => t.id)),
+  );
+
+  const availableTags = $derived(
+    ($allTagsQuery.data ?? []).filter((t) => !boundTagIds.has(t.id)),
+  );
+
+  let selectedTagId = $state<number | ''>('');
 
   const addMutation = createMutation({
     mutationFn: () => addFavorite(numericId),
@@ -51,6 +76,27 @@
     },
   });
 
+  const bindTagMutation = createMutation({
+    mutationFn: (tagId: number) => bindStyleTag(numericId, tagId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['style-tags', id], data);
+      selectedTagId = '';
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['style-tags', id] });
+    },
+  });
+
+  const unbindTagMutation = createMutation({
+    mutationFn: (tagId: number) => unbindStyleTag(numericId, tagId),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['style-tags', id], data);
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ['style-tags', id] });
+    },
+  });
+
   function getErrorMsg(err: unknown): string {
     if (err && typeof err === 'object' && 'response' in err) {
       const resp = (err as { response?: { data?: { error?: string } } }).response;
@@ -62,9 +108,9 @@
   const styleData = $derived($styleQuery.data as HousenoStyle | undefined);
 
   const visitRecordsQuery = createQuery({
-    queryKey: ['visit-records', id],
-    queryFn: () => fetchVisitRecords(numericId),
-    enabled: isValidId,
+    queryKey: () => ['visit-records', getId()],
+    queryFn: () => fetchVisitRecords(getNumericId()),
+    enabled: () => getIsValidId(),
   });
 
   let newVisitDate = $state('');
@@ -103,6 +149,16 @@
       return;
     }
     $addVisitMutation.mutate();
+  }
+
+  function handleBindTag() {
+    if (selectedTagId === '') return;
+    $bindTagMutation.mutate(selectedTagId);
+  }
+
+  function getBadgeColor(color: string): 'amber' | 'blue' | 'red' | 'purple' | 'green' | 'pink' | 'indigo' | 'yellow' | 'teal' | 'cyan' | 'dark' {
+    const validColors = ['amber', 'blue', 'red', 'purple', 'green', 'pink', 'indigo', 'yellow', 'teal', 'cyan', 'dark'] as const;
+    return (validColors.includes(color as typeof validColors[number]) ? color : 'amber') as typeof validColors[number];
   }
 </script>
 
@@ -197,6 +253,80 @@
         </div>
       </dl>
     </Card>
+
+    <div>
+      <h3 class="mb-3 text-lg font-semibold text-gray-800">标签</h3>
+
+      {#if $allTagsQuery.isPending || $styleTagsQuery.isPending}
+        <div class="flex justify-center py-4">
+          <Spinner size="6" />
+        </div>
+      {:else if $allTagsQuery.isError || $styleTagsQuery.isError}
+        <Alert color="red">加载标签数据失败</Alert>
+      {:else}
+        {@const boundTags = ($styleTagsQuery.data ?? []) as Tag[]}
+
+        <Card class="max-w-none">
+          <div class="space-y-4">
+            <div>
+              <div class="text-sm text-gray-500 mb-2">已绑定标签</div>
+              {#if boundTags.length === 0}
+                <p class="text-sm text-gray-400">暂无标签</p>
+              {:else}
+                <div class="flex flex-wrap gap-2">
+                  {#each boundTags as tag (tag.id)}
+                    <span class="inline-flex items-center gap-1">
+                      <Badge color={getBadgeColor(tag.color)} large>
+                        {tag.name}
+                      </Badge>
+                      <button
+                        type="button"
+                        onclick={() => $unbindTagMutation.mutate(tag.id)}
+                        disabled={$unbindTagMutation.isPending}
+                        class="ml-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-red-500 disabled:opacity-50"
+                        title="移除标签"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  {/each}
+                </div>
+              {/if}
+            </div>
+
+            <div class="border-t border-gray-100 pt-4">
+              <div class="text-sm text-gray-500 mb-2">添加标签</div>
+              <div class="flex items-center gap-2">
+                <select
+                  bind:value={selectedTagId}
+                  class="flex-1 rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
+                  disabled={availableTags.length === 0 || $bindTagMutation.isPending}
+                >
+                  <option value="">
+                    {availableTags.length === 0 ? '所有标签已绑定' : '请选择要添加的标签...'}
+                  </option>
+                  {#each availableTags as tag (tag.id)}
+                    <option value={tag.id}>{tag.name}</option>
+                  {/each}
+                </select>
+                <Button
+                  size="sm"
+                  color="amber"
+                  onclick={handleBindTag}
+                  disabled={selectedTagId === '' || $bindTagMutation.isPending}
+                >
+                  {#if $bindTagMutation.isPending}
+                    添加中...
+                  {:else}
+                    添加
+                  {/if}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      {/if}
+    </div>
 
     <div class="mt-8">
       <h3 class="mb-4 text-lg font-semibold text-gray-800">实地探访记录</h3>

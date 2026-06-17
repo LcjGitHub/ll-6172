@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createQuery } from '@tanstack/svelte-query';
+  import { createQuery, useQueryClient } from '@tanstack/svelte-query';
   import RouterLink from '../components/RouterLink.svelte';
   import {
     Table,
@@ -13,17 +13,64 @@
     Alert,
     Button,
   } from 'flowbite-svelte';
-  import { fetchHousenoStyles } from '../lib/api';
+  import { fetchHousenoStylesByTag, fetchTags } from '../lib/api';
+  import type { Tag } from '../lib/types';
+
+  const queryClient = useQueryClient();
+
+  let selectedTagId = $state<number | ''>('');
+
+  const tagsQuery = createQuery({
+    queryKey: ['tags'],
+    queryFn: fetchTags,
+  });
 
   const stylesQuery = createQuery({
-    queryKey: ['houseno-styles'],
-    queryFn: fetchHousenoStyles,
+    queryKey: ['houseno-styles', selectedTagId],
+    queryFn: () => fetchHousenoStylesByTag(selectedTagId === '' ? undefined : selectedTagId),
   });
+
+  function handleTagChange(event: Event) {
+    const target = event.target as HTMLSelectElement;
+    const value = target.value;
+    selectedTagId = value === '' ? '' : parseInt(value, 10);
+    queryClient.invalidateQueries({ queryKey: ['houseno-styles'] });
+  }
 </script>
 
 <div class="space-y-6">
-  <div class="flex items-center justify-between">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
     <h2 class="text-lg font-semibold text-gray-800">样式列表</h2>
+    <div class="flex items-center gap-2">
+      <label for="tagFilter" class="text-sm font-medium text-gray-700 whitespace-nowrap">按标签筛选：</label>
+      {#if $tagsQuery.isPending}
+        <Spinner size="4" />
+      {:else}
+        <select
+          id="tagFilter"
+          value={selectedTagId}
+          onchange={handleTagChange}
+          class="rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 min-w-[180px]"
+        >
+          <option value="">全部标签</option>
+          {#each ($tagsQuery.data ?? []) as tag (tag.id)}
+            <option value={tag.id}>{tag.name}</option>
+          {/each}
+        </select>
+        {#if selectedTagId !== ''}
+          <Button
+            size="xs"
+            color="gray"
+            onclick={() => {
+              selectedTagId = '';
+              queryClient.invalidateQueries({ queryKey: ['houseno-styles'] });
+            }}
+          >
+            清除筛选
+          </Button>
+        {/if}
+      {/if}
+    </div>
   </div>
 
   {#if $stylesQuery.isPending}
@@ -33,8 +80,21 @@
   {:else if $stylesQuery.isError}
     <Alert color="red">无法加载样式列表，请确认后端已启动（端口 4000）</Alert>
   {:else if ($stylesQuery.data ?? []).length === 0}
-    <Alert color="yellow">暂无门牌号样式数据，请运行 npm run seed 初始化。</Alert>
+    <Alert color="yellow">
+      {selectedTagId === ''
+        ? '暂无门牌号样式数据，请运行 npm run seed 初始化。'
+        : '所选标签下暂无样式数据。'}
+    </Alert>
   {:else}
+    {#if selectedTagId !== '' && $tagsQuery.data}
+      {@const selectedTag = ($tagsQuery.data as Tag[]).find((t) => t.id === selectedTagId)}
+      {#if selectedTag}
+        <div class="text-sm text-gray-600">
+          当前筛选标签：<Badge color={selectedTag.color as any}>{selectedTag.name}</Badge>
+          ，共 {($stylesQuery.data ?? []).length} 条结果
+        </div>
+      {/if}
+    {/if}
     <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
       <Table hoverable>
         <TableHead>

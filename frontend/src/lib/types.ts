@@ -64,3 +64,11 @@ export interface StatisticsOverview {
   materialDistribution: MaterialDistribution[];
   replacementStatus: ReplacementStatus;
 }
+
+/** 标签 */
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+  createdAt: string;
+}

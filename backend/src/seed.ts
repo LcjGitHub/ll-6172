@@ -39,6 +39,19 @@ export const SEED_DATA = [
   },
 ];
 
+export const TAG_SEED_DATA = [
+  { name: '历史建筑', color: 'amber' },
+  { name: '租界风格', color: 'blue' },
+  { name: '传统中式', color: 'red' },
+  { name: '民国风情', color: 'purple' },
+  { name: '现代简洁', color: 'green' },
+  { name: '艺术装饰', color: 'pink' },
+  { name: '手写风格', color: 'indigo' },
+  { name: '凸雕工艺', color: 'yellow' },
+  { name: '阴刻工艺', color: 'teal' },
+  { name: '双语标识', color: 'cyan' },
+];
+
 export const MATERIAL_SEED_DATA = [
   {
     name: '铸铁',
@@ -72,9 +85,10 @@ export const MATERIAL_SEED_DATA = [
  * @param database - 数据库实例
  * @param force - 是否强制清空后重新插入
  */
-export function seedDatabase(database: DbInstance, force = false): { styles: number; materials: number } {
+export function seedDatabase(database: DbInstance, force = false): { styles: number; materials: number; tags: number } {
   let insertedStyles = 0;
   let insertedMaterials = 0;
+  let insertedTags = 0;
 
   const styleCount = database
     .prepare('SELECT COUNT(*) as count FROM houseno_styles')
@@ -133,7 +147,34 @@ export function seedDatabase(database: DbInstance, force = false): { styles: num
     insertManyMaterials(MATERIAL_SEED_DATA);
   }
 
-  return { styles: insertedStyles, materials: insertedMaterials };
+  const tagCount = database
+    .prepare('SELECT COUNT(*) as count FROM tags')
+    .get() as { count: number };
+
+  if (force || tagCount.count === 0) {
+    if (force) {
+      database.exec('DELETE FROM tags');
+    }
+
+    const insertTag = database.prepare(`
+      INSERT OR IGNORE INTO tags (
+        name, color
+      ) VALUES (
+        @name, @color
+      )
+    `);
+
+    const insertManyTags = database.transaction((items: typeof TAG_SEED_DATA) => {
+      for (const item of items) {
+        insertTag.run(item);
+        insertedTags++;
+      }
+    });
+
+    insertManyTags(TAG_SEED_DATA);
+  }
+
+  return { styles: insertedStyles, materials: insertedMaterials, tags: insertedTags };
 }
 
 if (require.main === undefined || !process.env.DISABLE_AUTO_SEED) {
@@ -143,5 +184,8 @@ if (require.main === undefined || !process.env.DISABLE_AUTO_SEED) {
   }
   if (result.materials > 0) {
     console.log(`[seed] 已插入 ${result.materials} 条材质百科数据`);
+  }
+  if (result.tags > 0) {
+    console.log(`[seed] 已插入 ${result.tags} 条标签数据`);
   }
 }

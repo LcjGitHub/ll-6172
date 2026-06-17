@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { HousenoStyle, Favorite, FavoriteWithStyle, Material, StatisticsOverview, VisitRecord, VisitRecordInput } from './types';
+import type { HousenoStyle, Favorite, FavoriteWithStyle, Material, StatisticsOverview, VisitRecord, VisitRecordInput, Tag } from './types';
 
 const api = axios.create({
   baseURL: '/api',
@@ -62,5 +62,36 @@ export async function fetchVisitRecords(styleId: number): Promise<VisitRecord[]>
 /** 新增一条探访记录 */
 export async function createVisitRecord(input: VisitRecordInput): Promise<VisitRecord> {
   const { data } = await api.post<VisitRecord>('/visit-records', input);
+  return data;
+}
+
+/** 获取全部标签列表 */
+export async function fetchTags(): Promise<Tag[]> {
+  const { data } = await api.get<Tag[]>('/tags');
+  return data;
+}
+
+/** 获取某样式已绑定的标签列表 */
+export async function fetchStyleTags(styleId: number): Promise<Tag[]> {
+  const { data } = await api.get<Tag[]>(`/houseno-styles/${styleId}/tags`);
+  return data;
+}
+
+/** 为某样式绑定标签 */
+export async function bindStyleTag(styleId: number, tagId: number): Promise<Tag[]> {
+  const { data } = await api.post<Tag[]>(`/houseno-styles/${styleId}/tags/${tagId}`);
+  return data;
+}
+
+/** 解除某样式的标签绑定 */
+export async function unbindStyleTag(styleId: number, tagId: number): Promise<Tag[]> {
+  const { data } = await api.delete<Tag[]>(`/houseno-styles/${styleId}/tags/${tagId}`);
+  return data;
+}
+
+/** 按标签筛选获取样式列表 */
+export async function fetchHousenoStylesByTag(tagId?: number): Promise<HousenoStyle[]> {
+  const url = tagId ? `/houseno-styles?tagId=${tagId}` : '/houseno-styles';
+  const { data } = await api.get<HousenoStyle[]>(url);
   return data;
 }

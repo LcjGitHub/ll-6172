@@ -78,6 +78,39 @@ export function createDatabase(customPath?: string): DbInstance {
     CREATE INDEX IF NOT EXISTS idx_visit_records_style_id ON visit_records(style_id)
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      color TEXT NOT NULL DEFAULT 'amber',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name ON tags(name)
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS style_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      style_id INTEGER NOT NULL,
+      tag_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (style_id) REFERENCES houseno_styles(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+      UNIQUE(style_id, tag_id)
+    )
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_style_tags_style_id ON style_tags(style_id)
+  `);
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_style_tags_tag_id ON style_tags(tag_id)
+  `);
+
   return db;
 }
 

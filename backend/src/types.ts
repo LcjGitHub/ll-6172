@@ -73,3 +73,19 @@ export interface StatisticsOverview {
   materialDistribution: MaterialDistribution[];
   replacementStatus: ReplacementStatus;
 }
+
+/** 标签 */
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
+/** 样式-标签关联 */
+export interface StyleTag {
+  id: number;
+  styleId: number;
+  tagId: number;
+  createdAt: string;
+}
