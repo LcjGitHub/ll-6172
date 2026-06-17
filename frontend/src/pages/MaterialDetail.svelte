@@ -25,7 +25,7 @@
 <div class="space-y-6">
   <RouterLink
     to="/materials"
-    class="inline-flex items-center text-sm text-amber-700 hover:underline"
+    class="inline-flex items-center text-sm text-emerald-700 hover:underline"
   >
     ← 返回材质列表
   </RouterLink>
@@ -37,7 +37,7 @@
       <Spinner size="8" />
     </div>
   {:else if $materialQuery.isError}
-    <Alert color="red">材质不存在或后端未启动</Alert>
+    <Alert color="red">未找到该材质</Alert>
   {:else if materialData}
     {@const material = materialData}
 
@@ -47,10 +47,6 @@
 
     <Card class="max-w-none">
       <dl class="space-y-6">
-        <div>
-          <dt class="text-sm text-gray-500">材质名称</dt>
-          <dd class="mt-1 text-lg font-medium text-gray-800">{material.name}</dd>
-        </div>
         <div>
           <dt class="text-sm text-gray-500">常见用途</dt>
           <dd class="mt-1 whitespace-pre-wrap text-gray-700">{material.commonUses}</dd>

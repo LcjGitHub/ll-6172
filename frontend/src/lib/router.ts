@@ -69,3 +69,11 @@ export function parseMaterialId(path: string): string | null {
 export function isMaterialList(path: string): boolean {
   return path === '/materials';
 }
+
+/**
+ * 判断是否为材质详情路径（含无效编号）。
+ * @param path - 当前路径
+ */
+export function isMaterialDetail(path: string): boolean {
+  return /^\/materials\/.+/.test(path);
+}

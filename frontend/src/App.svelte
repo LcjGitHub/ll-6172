@@ -7,7 +7,7 @@
   import FavoriteList from './pages/FavoriteList.svelte';
   import MaterialList from './pages/MaterialList.svelte';
   import MaterialDetail from './pages/MaterialDetail.svelte';
-  import { initRouter, parseStyleId, isStyleList, isFavorites, parseMaterialId, isMaterialList, pathname } from './lib/router';
+  import { initRouter, parseStyleId, isStyleList, isFavorites, parseMaterialId, isMaterialList, isMaterialDetail, pathname } from './lib/router';
 
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -57,6 +57,8 @@
         {#key parseMaterialId($pathname)}
           <MaterialDetail id={parseMaterialId($pathname)!} />
         {/key}
+      {:else if isMaterialDetail($pathname)}
+        <MaterialDetail id={$pathname.replace(/^\/materials\//, '')} />
       {:else if isFavorites($pathname)}
         <FavoriteList />
       {:else if isMaterialList($pathname)}

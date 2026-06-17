@@ -116,7 +116,7 @@ export function seedDatabase(database: DbInstance, force = false): { styles: num
     }
 
     const insertMaterial = database.prepare(`
-      INSERT INTO materials (
+      INSERT OR IGNORE INTO materials (
         name, common_uses, care_tips
       ) VALUES (
         @name, @commonUses, @careTips

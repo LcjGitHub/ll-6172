@@ -52,10 +52,14 @@ export function createDatabase(customPath?: string): DbInstance {
   db.exec(`
     CREATE TABLE IF NOT EXISTS materials (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
+      name TEXT NOT NULL UNIQUE,
       common_uses TEXT NOT NULL,
       care_tips TEXT NOT NULL
     )
+  `);
+
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_materials_name ON materials(name)
   `);
 
   return db;
