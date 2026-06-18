@@ -39,9 +39,20 @@
 
   let invalidateFirstRun = true;
   $effect(() => {
-    const filters = [selectedTagId, selectedMaterial, selectedUnified, debouncedKeyword];
+    const triggers = [selectedTagId, selectedMaterial, selectedUnified, debouncedKeyword, sortField, sortOrder, page, pageSize];
     if (invalidateFirstRun) {
       invalidateFirstRun = false;
+      return;
+    }
+    void triggers;
+    queryClient.resetQueries({ queryKey: ['houseno-styles'] });
+  });
+
+  let resetPageFirstRun = true;
+  $effect(() => {
+    const filters = [selectedTagId, selectedMaterial, selectedUnified, debouncedKeyword, sortField, sortOrder];
+    if (resetPageFirstRun) {
+      resetPageFirstRun = false;
       return;
     }
     void filters;
@@ -66,7 +77,7 @@
   });
 
   const stylesQuery = createQuery({
-    queryKey: ['houseno-styles', { tagId: selectedTagId, material: selectedMaterial, unified: selectedUnified, keyword: debouncedKeyword, sortField, sortOrder, page, pageSize }],
+    queryKey: ['houseno-styles'],
     queryFn: () =>
       fetchHousenoStyles({
         tagId: selectedTagId === '' ? undefined : selectedTagId,
