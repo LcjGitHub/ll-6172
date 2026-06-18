@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import ExcelJS from 'exceljs';
 import db from '../db';
 import type { HousenoStyle, HousenoStyleDetail, Tag, HousenoStyleInput, PaginatedResult, SortField, SortOrder } from '../types';
 
@@ -126,6 +127,92 @@ router.get('/material-options', (_req: Request, res: Response) => {
     .prepare('SELECT DISTINCT material FROM houseno_styles WHERE material IS NOT NULL ORDER BY material')
     .all() as { material: string }[];
   res.json(rows.map((row) => row.material));
+});
+
+router.get('/export', async (req: Request, res: Response) => {
+  const tagId = req.query.tagId;
+  const material = req.query.material;
+  const unifiedReplacement = req.query.unifiedReplacement;
+  const keyword = req.query.keyword;
+  const sortField = req.query.sortField as string | undefined;
+  const sortOrder = req.query.sortOrder as string | undefined;
+
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+  let joinStyleTags = false;
+
+  if (tagId !== undefined && tagId !== '') {
+    joinStyleTags = true;
+    conditions.push('st.tag_id = ?');
+    params.push(Number(tagId));
+  }
+
+  if (material !== undefined && material !== '') {
+    conditions.push('hs.material = ?');
+    params.push(String(material));
+  }
+
+  if (unifiedReplacement !== undefined && unifiedReplacement !== '') {
+    conditions.push('hs.unified_replacement = ?');
+    params.push(String(unifiedReplacement) === 'true' ? 1 : 0);
+  }
+
+  if (keyword !== undefined && keyword !== '') {
+    conditions.push('hs.city_district LIKE ?');
+    params.push(`%${String(keyword)}%`);
+  }
+
+  let orderBy = 'hs.id';
+  let orderDir = 'ASC';
+  if (sortField && ALLOWED_SORT_FIELDS[sortField]) {
+    orderBy = ALLOWED_SORT_FIELDS[sortField];
+    orderDir = sortOrder === 'desc' ? 'DESC' : 'ASC';
+  }
+
+  const whereSql = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+
+  let dataSql = 'SELECT hs.* FROM houseno_styles hs';
+  if (joinStyleTags) {
+    dataSql += ' INNER JOIN style_tags st ON hs.id = st.style_id';
+  }
+  dataSql += whereSql;
+  dataSql += ` ORDER BY ${orderBy} ${orderDir}`;
+
+  const rows = db.prepare(dataSql).all(...params) as DbRow[];
+  const styles = rows.map(rowToStyle);
+
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('门牌号样式');
+
+  worksheet.columns = [
+    { header: '城市/街区', key: 'cityDistrict', width: 30 },
+    { header: '材质', key: 'material', width: 20 },
+    { header: '字体', key: 'font', width: 20 },
+    { header: '编号规则', key: 'numberingRules', width: 50 },
+    { header: '是否统一更换', key: 'unifiedReplacement', width: 15 },
+  ];
+
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+  styles.forEach((style) => {
+    worksheet.addRow({
+      cityDistrict: style.cityDistrict,
+      material: style.material,
+      font: style.font,
+      numberingRules: style.numberingRules,
+      unifiedReplacement: style.unifiedReplacement ? '是' : '否',
+    });
+  });
+
+  const timestamp = new Date().toISOString().slice(0, 10);
+  const filename = `门牌号样式_${timestamp}.xlsx`;
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  res.send(Buffer.from(buffer));
 });
 
 router.get('/:id', (req: Request, res: Response) => {

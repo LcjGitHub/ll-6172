@@ -14,7 +14,7 @@
     Button,
     Card,
   } from 'flowbite-svelte';
-  import { fetchHousenoStyles, fetchHousenoStyleMaterials, fetchTags, createHousenoStyle } from '../lib/api';
+  import { fetchHousenoStyles, fetchHousenoStyleMaterials, fetchTags, createHousenoStyle, exportHousenoStyles } from '../lib/api';
   import type { HousenoStyleInput, SortField, SortOrder } from '../lib/types';
 
   let selectedTagId = $state<number | ''>('');
@@ -217,6 +217,27 @@
     }
     return '操作失败，请稍后重试';
   }
+
+  let isExporting = $state(false);
+
+  async function handleExport() {
+    if (isExporting) return;
+    isExporting = true;
+    try {
+      await exportHousenoStyles({
+        tagId: selectedTagId === '' ? undefined : selectedTagId,
+        material: selectedMaterial || undefined,
+        unifiedReplacement: selectedUnified === '' ? undefined : selectedUnified === 'true',
+        keyword: debouncedKeyword || undefined,
+        sortField,
+        sortOrder,
+      });
+    } catch (err) {
+      console.error('导出失败:', err);
+    } finally {
+      isExporting = false;
+    }
+  }
 </script>
 
 <div class="space-y-6">
@@ -225,9 +246,18 @@
       <h2 class="text-lg font-semibold text-gray-800">样式列表</h2>
       <p class="mt-1 text-sm text-gray-500">支持按材质、是否统一更换、城市/街区关键字组合筛选</p>
     </div>
-    <Button size="sm" color="yellow" onclick={() => showCreateForm = !showCreateForm}>
-      {showCreateForm ? '取消' : '+ 新建样式'}
-    </Button>
+    <div class="flex items-center gap-2">
+      <Button size="sm" color="alternative" onclick={handleExport} disabled={isExporting}>
+        {#if isExporting}
+          导出中...
+        {:else}
+          ↓ 导出表格
+        {/if}
+      </Button>
+      <Button size="sm" color="yellow" onclick={() => showCreateForm = !showCreateForm}>
+        {showCreateForm ? '取消' : '+ 新建样式'}
+      </Button>
+    </div>
   </div>
 
   {#if showCreateSuccess}

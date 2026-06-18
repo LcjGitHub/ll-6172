@@ -143,3 +143,53 @@ export async function unbindStyleTag(styleId: number, tagId: number): Promise<Ta
 export async function fetchHousenoStylesByTag(tagId?: number): Promise<PaginatedResult<HousenoStyle>> {
   return fetchHousenoStyles(tagId === undefined ? {} : { tagId });
 }
+
+/** 导出门牌号样式为 Excel 文件（支持筛选条件） */
+export async function exportHousenoStyles(filter: HousenoStyleFilter = {}): Promise<void> {
+  const params = new URLSearchParams();
+  if (filter.tagId !== undefined) {
+    params.set('tagId', String(filter.tagId));
+  }
+  if (filter.material) {
+    params.set('material', filter.material);
+  }
+  if (filter.unifiedReplacement !== undefined) {
+    params.set('unifiedReplacement', String(filter.unifiedReplacement));
+  }
+  if (filter.keyword) {
+    params.set('keyword', filter.keyword);
+  }
+  if (filter.sortField) {
+    params.set('sortField', filter.sortField);
+  }
+  if (filter.sortOrder) {
+    params.set('sortOrder', filter.sortOrder);
+  }
+  const query = params.toString();
+  const url = query ? `/houseno-styles/export?${query}` : '/houseno-styles/export';
+
+  const response = await api.get(url, {
+    responseType: 'blob',
+  });
+
+  const contentDisposition = response.headers['content-disposition'];
+  let filename = '门牌号样式.xlsx';
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename\*=UTF-8''([^;]+)|filename="([^"]+)"/);
+    if (match) {
+      filename = decodeURIComponent(match[1] || match[2]);
+    }
+  }
+
+  const blob = new Blob([response.data], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const downloadUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(downloadUrl);
+}
