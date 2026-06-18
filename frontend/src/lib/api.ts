@@ -168,28 +168,51 @@ export async function exportHousenoStyles(filter: HousenoStyleFilter = {}): Prom
   const query = params.toString();
   const url = query ? `/houseno-styles/export?${query}` : '/houseno-styles/export';
 
-  const response = await api.get(url, {
-    responseType: 'blob',
-  });
+  try {
+    const response = await api.get(url, {
+      responseType: 'blob',
+    });
 
-  const contentDisposition = response.headers['content-disposition'];
-  let filename = '门牌号样式.xlsx';
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename\*=UTF-8''([^;]+)|filename="([^"]+)"/);
-    if (match) {
-      filename = decodeURIComponent(match[1] || match[2]);
+    const contentDisposition = response.headers['content-disposition'];
+    let filename = '门牌号样式.xlsx';
+    if (contentDisposition) {
+      const starMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+      if (starMatch) {
+        filename = decodeURIComponent(starMatch[1]);
+      } else {
+        const plainMatch = contentDisposition.match(/filename="([^"]+)"/);
+        if (plainMatch) {
+          filename = decodeURIComponent(plainMatch[1]);
+        }
+      }
     }
-  }
 
-  const blob = new Blob([response.data], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
-  const downloadUrl = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = downloadUrl;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(downloadUrl);
+    const blob = new Blob([response.data], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(downloadUrl);
+  } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'response' in err) {
+      const resp = (err as { response?: { data?: Blob; status?: number } }).response;
+      if (resp?.data instanceof Blob) {
+        try {
+          const text = await resp.data.text();
+          const data = JSON.parse(text);
+          if (data?.error) {
+            throw new Error(data.error);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+    throw new Error('导出表格失败，请稍后重试');
+  }
 }

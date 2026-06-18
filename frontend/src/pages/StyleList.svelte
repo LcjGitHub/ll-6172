@@ -219,10 +219,16 @@
   }
 
   let isExporting = $state(false);
+  let showExportSuccess = $state(false);
+  let exportError = $state('');
+  let exportStatusMessage = $state('');
 
   async function handleExport() {
     if (isExporting) return;
     isExporting = true;
+    exportError = '';
+    showExportSuccess = false;
+    exportStatusMessage = '正在导出表格，请稍候...';
     try {
       await exportHousenoStyles({
         tagId: selectedTagId === '' ? undefined : selectedTagId,
@@ -232,8 +238,15 @@
         sortField,
         sortOrder,
       });
+      showExportSuccess = true;
+      exportStatusMessage = '表格导出成功，文件已开始下载';
+      setTimeout(() => {
+        showExportSuccess = false;
+      }, 3000);
     } catch (err) {
-      console.error('导出失败:', err);
+      const msg = err instanceof Error ? err.message : '导出失败，请稍后重试';
+      exportError = msg;
+      exportStatusMessage = `导出失败：${msg}`;
     } finally {
       isExporting = false;
     }
@@ -247,7 +260,15 @@
       <p class="mt-1 text-sm text-gray-500">支持按材质、是否统一更换、城市/街区关键字组合筛选</p>
     </div>
     <div class="flex items-center gap-2">
-      <Button size="sm" color="alternative" onclick={handleExport} disabled={isExporting}>
+      <Button
+        size="sm"
+        color="alternative"
+        onclick={handleExport}
+        disabled={isExporting}
+        aria-label="导出当前列表数据为 Excel 表格"
+        aria-busy={isExporting}
+        aria-describedby="export-status"
+      >
         {#if isExporting}
           导出中...
         {:else}
@@ -263,6 +284,18 @@
   {#if showCreateSuccess}
     <Alert color="green" role="status" aria-live="polite">样式创建成功</Alert>
   {/if}
+
+  {#if showExportSuccess}
+    <Alert color="green" role="status" aria-live="polite">表格导出成功，文件已开始下载</Alert>
+  {/if}
+
+  {#if exportError}
+    <Alert color="red" role="alert" aria-live="assertive">导出失败：{exportError}</Alert>
+  {/if}
+
+  <div id="export-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+    {exportStatusMessage}
+  </div>
 
   {#if showCreateForm}
     {#if $createStyleMutation.error}
