@@ -13,64 +13,141 @@
     Alert,
     Button,
   } from 'flowbite-svelte';
-  import { fetchHousenoStylesByTag, fetchTags } from '../lib/api';
-  import type { Tag } from '../lib/types';
+  import { fetchHousenoStyles, fetchHousenoStyleMaterials, fetchTags } from '../lib/api';
+
+  let selectedTagId = $state<number | ''>('');
+  let selectedMaterial = $state<string>('');
+  let selectedUnified = $state<string>('');
+  let keywordInput = $state<string>('');
+  let debouncedKeyword = $state<string>('');
+
+  $effect(() => {
+    const value = keywordInput;
+    const timer = setTimeout(() => {
+      debouncedKeyword = value.trim();
+    }, 300);
+    return () => clearTimeout(timer);
+  });
 
   const queryClient = useQueryClient();
 
-  let selectedTagId = $state<number | ''>('');
+  let invalidateFirstRun = true;
+  $effect(() => {
+    const filters = [selectedTagId, selectedMaterial, selectedUnified, debouncedKeyword];
+    if (invalidateFirstRun) {
+      invalidateFirstRun = false;
+      return;
+    }
+    void filters;
+    queryClient.invalidateQueries({ queryKey: ['houseno-styles'] });
+  });
+
+  const hasFilter = $derived(
+    selectedTagId !== '' ||
+      selectedMaterial !== '' ||
+      selectedUnified !== '' ||
+      debouncedKeyword !== '',
+  );
 
   const tagsQuery = createQuery({
     queryKey: ['tags'],
     queryFn: fetchTags,
   });
 
+  const materialsQuery = createQuery({
+    queryKey: ['houseno-style-materials'],
+    queryFn: fetchHousenoStyleMaterials,
+  });
+
   const stylesQuery = createQuery({
-    queryKey: ['houseno-styles', selectedTagId],
-    queryFn: () => fetchHousenoStylesByTag(selectedTagId === '' ? undefined : selectedTagId),
+    queryKey: ['houseno-styles'],
+    queryFn: () =>
+      fetchHousenoStyles({
+        tagId: selectedTagId === '' ? undefined : selectedTagId,
+        material: selectedMaterial || undefined,
+        unifiedReplacement: selectedUnified === '' ? undefined : selectedUnified === 'true',
+        keyword: debouncedKeyword || undefined,
+      }),
   });
 
   function handleTagChange(event: Event) {
     const target = event.target as HTMLSelectElement;
     const value = target.value;
     selectedTagId = value === '' ? '' : parseInt(value, 10);
-    queryClient.invalidateQueries({ queryKey: ['houseno-styles'] });
+  }
+
+  function clearFilters() {
+    selectedTagId = '';
+    selectedMaterial = '';
+    selectedUnified = '';
+    keywordInput = '';
+    debouncedKeyword = '';
   }
 </script>
 
 <div class="space-y-6">
-  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  <div>
     <h2 class="text-lg font-semibold text-gray-800">样式列表</h2>
-    <div class="flex items-center gap-2">
-      <label for="tagFilter" class="text-sm font-medium text-gray-700 whitespace-nowrap">按标签筛选：</label>
-      {#if $tagsQuery.isPending}
-        <Spinner size="4" />
-      {:else}
-        <select
-          id="tagFilter"
-          value={selectedTagId}
-          onchange={handleTagChange}
-          class="rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 min-w-[180px]"
-        >
-          <option value="">全部标签</option>
-          {#each ($tagsQuery.data ?? []) as tag (tag.id)}
-            <option value={tag.id}>{tag.name}</option>
-          {/each}
-        </select>
-        {#if selectedTagId !== ''}
-          <Button
-            size="xs"
-            color="gray"
-            onclick={() => {
-              selectedTagId = '';
-              queryClient.invalidateQueries({ queryKey: ['houseno-styles'] });
-            }}
-          >
-            清除筛选
-          </Button>
-        {/if}
-      {/if}
+    <p class="mt-1 text-sm text-gray-500">支持按材质、是否统一更换、城市/街区关键字组合筛选</p>
+  </div>
+
+  <div class="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <div class="flex flex-col gap-1">
+      <label for="tagFilter" class="text-xs font-medium text-gray-600">标签</label>
+      <select
+        id="tagFilter"
+        value={selectedTagId}
+        onchange={handleTagChange}
+        class="rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 min-w-[160px]"
+      >
+        <option value="">全部标签</option>
+        {#each ($tagsQuery.data ?? []) as tag (tag.id)}
+          <option value={tag.id}>{tag.name}</option>
+        {/each}
+      </select>
     </div>
+
+    <div class="flex flex-col gap-1">
+      <label for="materialFilter" class="text-xs font-medium text-gray-600">材质</label>
+      <select
+        id="materialFilter"
+        bind:value={selectedMaterial}
+        class="rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 min-w-[160px]"
+      >
+        <option value="">全部材质</option>
+        {#each ($materialsQuery.data ?? []) as material (material)}
+          <option value={material}>{material}</option>
+        {/each}
+      </select>
+    </div>
+
+    <div class="flex flex-col gap-1">
+      <label for="unifiedFilter" class="text-xs font-medium text-gray-600">统一更换</label>
+      <select
+        id="unifiedFilter"
+        bind:value={selectedUnified}
+        class="rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500 min-w-[140px]"
+      >
+        <option value="">全部</option>
+        <option value="true">是</option>
+        <option value="false">否</option>
+      </select>
+    </div>
+
+    <div class="flex min-w-[200px] flex-1 flex-col gap-1">
+      <label for="keywordFilter" class="text-xs font-medium text-gray-600">城市/街区搜索</label>
+      <input
+        id="keywordFilter"
+        type="text"
+        bind:value={keywordInput}
+        placeholder="输入城市或街区关键字"
+        class="rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
+      />
+    </div>
+
+    {#if hasFilter}
+      <Button size="sm" color="alternative" onclick={clearFilters}>清除筛选</Button>
+    {/if}
   </div>
 
   {#if $stylesQuery.isPending}
@@ -81,19 +158,15 @@
     <Alert color="red">无法加载样式列表，请确认后端已启动（端口 4000）</Alert>
   {:else if ($stylesQuery.data ?? []).length === 0}
     <Alert color="yellow">
-      {selectedTagId === ''
-        ? '暂无门牌号样式数据，请运行 npm run seed 初始化。'
-        : '所选标签下暂无样式数据。'}
+      {hasFilter
+        ? '没有符合筛选条件的样式数据，可清除筛选后重试。'
+        : '暂无门牌号样式数据，请运行 npm run seed 初始化。'}
     </Alert>
   {:else}
-    {#if selectedTagId !== '' && $tagsQuery.data}
-      {@const selectedTag = ($tagsQuery.data as Tag[]).find((t) => t.id === selectedTagId)}
-      {#if selectedTag}
-        <div class="text-sm text-gray-600">
-          当前筛选标签：<Badge color={selectedTag.color as any}>{selectedTag.name}</Badge>
-          ，共 {($stylesQuery.data ?? []).length} 条结果
-        </div>
-      {/if}
+    {#if hasFilter}
+      <div class="text-sm text-gray-600">
+        共 {($stylesQuery.data ?? []).length} 条结果
+      </div>
     {/if}
     <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
       <Table hoverable>

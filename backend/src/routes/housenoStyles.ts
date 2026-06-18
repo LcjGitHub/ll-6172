@@ -42,23 +42,53 @@ function rowToTag(row: TagDbRow): Tag {
 
 router.get('/', (req: Request, res: Response) => {
   const tagId = req.query.tagId;
+  const material = req.query.material;
+  const unifiedReplacement = req.query.unifiedReplacement;
+  const keyword = req.query.keyword;
 
-  let rows: DbRow[];
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+  let joinStyleTags = false;
+
   if (tagId !== undefined && tagId !== '') {
-    rows = db
-      .prepare(`
-        SELECT hs.* FROM houseno_styles hs
-        INNER JOIN style_tags st ON hs.id = st.style_id
-        WHERE st.tag_id = ?
-        ORDER BY hs.id
-      `)
-      .all(tagId) as DbRow[];
-  } else {
-    rows = db
-      .prepare('SELECT * FROM houseno_styles ORDER BY id')
-      .all() as DbRow[];
+    joinStyleTags = true;
+    conditions.push('st.tag_id = ?');
+    params.push(Number(tagId));
   }
+
+  if (material !== undefined && material !== '') {
+    conditions.push('hs.material = ?');
+    params.push(String(material));
+  }
+
+  if (unifiedReplacement !== undefined && unifiedReplacement !== '') {
+    conditions.push('hs.unified_replacement = ?');
+    params.push(String(unifiedReplacement) === 'true' ? 1 : 0);
+  }
+
+  if (keyword !== undefined && keyword !== '') {
+    conditions.push('hs.city_district LIKE ?');
+    params.push(`%${String(keyword)}%`);
+  }
+
+  let sql = 'SELECT hs.* FROM houseno_styles hs';
+  if (joinStyleTags) {
+    sql += ' INNER JOIN style_tags st ON hs.id = st.style_id';
+  }
+  if (conditions.length > 0) {
+    sql += ` WHERE ${conditions.join(' AND ')}`;
+  }
+  sql += ' ORDER BY hs.id';
+
+  const rows = db.prepare(sql).all(...params) as DbRow[];
   res.json(rows.map(rowToStyle));
+});
+
+router.get('/material-options', (_req: Request, res: Response) => {
+  const rows = db
+    .prepare('SELECT DISTINCT material FROM houseno_styles WHERE material IS NOT NULL ORDER BY material')
+    .all() as { material: string }[];
+  res.json(rows.map((row) => row.material));
 });
 
 router.get('/:id', (req: Request, res: Response) => {

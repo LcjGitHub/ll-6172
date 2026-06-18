@@ -8,6 +8,18 @@ export interface HousenoStyle {
   unifiedReplacement: boolean;
 }
 
+/** 门牌号样式列表筛选条件 */
+export interface HousenoStyleFilter {
+  /** 按标签精确筛选 */
+  tagId?: number;
+  /** 按材质精确筛选 */
+  material?: string;
+  /** 按是否统一更换筛选 */
+  unifiedReplacement?: boolean;
+  /** 按城市/街区关键字模糊搜索 */
+  keyword?: string;
+}
+
 /** 收藏记录 */
 export interface Favorite {
   id: number;

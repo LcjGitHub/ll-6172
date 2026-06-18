@@ -1,14 +1,35 @@
 import axios from 'axios';
-import type { HousenoStyle, Favorite, FavoriteWithStyle, Material, StatisticsOverview, VisitRecord, VisitRecordInput, Tag } from './types';
+import type { HousenoStyle, HousenoStyleFilter, Favorite, FavoriteWithStyle, Material, StatisticsOverview, VisitRecord, VisitRecordInput, Tag } from './types';
 
 const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
-/** 获取全部门牌号样式列表 */
-export async function fetchHousenoStyles(): Promise<HousenoStyle[]> {
-  const { data } = await api.get<HousenoStyle[]>('/houseno-styles');
+/** 获取门牌号样式列表（支持材质、统一更换、关键字等组合筛选） */
+export async function fetchHousenoStyles(filter: HousenoStyleFilter = {}): Promise<HousenoStyle[]> {
+  const params = new URLSearchParams();
+  if (filter.tagId !== undefined) {
+    params.set('tagId', String(filter.tagId));
+  }
+  if (filter.material) {
+    params.set('material', filter.material);
+  }
+  if (filter.unifiedReplacement !== undefined) {
+    params.set('unifiedReplacement', String(filter.unifiedReplacement));
+  }
+  if (filter.keyword) {
+    params.set('keyword', filter.keyword);
+  }
+  const query = params.toString();
+  const url = query ? `/houseno-styles?${query}` : '/houseno-styles';
+  const { data } = await api.get<HousenoStyle[]>(url);
+  return data;
+}
+
+/** 获取门牌号样式中已存在的材质选项（用于材质筛选下拉框） */
+export async function fetchHousenoStyleMaterials(): Promise<string[]> {
+  const { data } = await api.get<string[]>('/houseno-styles/material-options');
   return data;
 }
 
@@ -91,7 +112,5 @@ export async function unbindStyleTag(styleId: number, tagId: number): Promise<Ta
 
 /** 按标签筛选获取样式列表 */
 export async function fetchHousenoStylesByTag(tagId?: number): Promise<HousenoStyle[]> {
-  const url = tagId ? `/houseno-styles?tagId=${tagId}` : '/houseno-styles';
-  const { data } = await api.get<HousenoStyle[]>(url);
-  return data;
+  return fetchHousenoStyles(tagId === undefined ? {} : { tagId });
 }
