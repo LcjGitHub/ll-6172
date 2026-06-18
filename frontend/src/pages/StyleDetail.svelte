@@ -1,9 +1,10 @@
 <script lang="ts">
   import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-query';
+  import { navigate } from '../lib/router';
   import RouterLink from '../components/RouterLink.svelte';
-  import { Badge, Spinner, Alert, Card, Button } from 'flowbite-svelte';
-  import { fetchHousenoStyle, fetchFavorites, addFavorite, removeFavorite, fetchVisitRecords, createVisitRecord, fetchTags, fetchStyleTags, bindStyleTag, unbindStyleTag } from '../lib/api';
-  import type { HousenoStyle, VisitRecord, Tag } from '../lib/types';
+  import { Badge, Spinner, Alert, Card, Button, Modal } from 'flowbite-svelte';
+  import { fetchHousenoStyle, fetchFavorites, addFavorite, removeFavorite, fetchVisitRecords, createVisitRecord, fetchTags, fetchStyleTags, bindStyleTag, unbindStyleTag, updateHousenoStyle, deleteHousenoStyle } from '../lib/api';
+  import type { HousenoStyle, VisitRecord, Tag, HousenoStyleInput } from '../lib/types';
 
   interface Props {
     id: string;
@@ -99,6 +100,87 @@
     },
   });
 
+  let isEditing = $state(false);
+  let editCityDistrict = $state('');
+  let editMaterial = $state('');
+  let editFont = $state('');
+  let editNumberingRules = $state('');
+  let editUnifiedReplacement = $state(false);
+  let editFormError = $state('');
+
+  function enterEditMode() {
+    if (!styleData) return;
+    editCityDistrict = styleData.cityDistrict;
+    editMaterial = styleData.material;
+    editFont = styleData.font;
+    editNumberingRules = styleData.numberingRules;
+    editUnifiedReplacement = styleData.unifiedReplacement;
+    editFormError = '';
+    isEditing = true;
+  }
+
+  function cancelEdit() {
+    isEditing = false;
+    editFormError = '';
+  }
+
+  const updateMutation = createMutation({
+    mutationFn: (input: HousenoStyleInput) => updateHousenoStyle(parseInt(id, 10), input),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['houseno-style', id], data);
+      queryClient.invalidateQueries({ queryKey: ['houseno-styles'] });
+      queryClient.invalidateQueries({ queryKey: ['houseno-style-materials'] });
+      queryClient.invalidateQueries({ queryKey: ['statistics'] });
+      queryClient.invalidateQueries({ queryKey: ['favorites'] });
+      isEditing = false;
+    },
+  });
+
+  function handleUpdateSubmit() {
+    editFormError = '';
+    if (!editCityDistrict.trim()) {
+      editFormError = '城市/街区为必填项';
+      return;
+    }
+    if (!editMaterial.trim()) {
+      editFormError = '材质为必填项';
+      return;
+    }
+    if (!editFont.trim()) {
+      editFormError = '字体为必填项';
+      return;
+    }
+    if (!editNumberingRules.trim()) {
+      editFormError = '编号规则为必填项';
+      return;
+    }
+    $updateMutation.mutate({
+      cityDistrict: editCityDistrict.trim(),
+      material: editMaterial.trim(),
+      font: editFont.trim(),
+      numberingRules: editNumberingRules.trim(),
+      unifiedReplacement: editUnifiedReplacement,
+    });
+  }
+
+  let showDeleteConfirm = $state(false);
+
+  const deleteMutation = createMutation({
+    mutationFn: () => deleteHousenoStyle(parseInt(id, 10)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['houseno-styles'] });
+      queryClient.invalidateQueries({ queryKey: ['houseno-style-materials'] });
+      queryClient.invalidateQueries({ queryKey: ['statistics'] });
+      queryClient.invalidateQueries({ queryKey: ['favorites'] });
+      navigate('/');
+    },
+  });
+
+  function handleDelete() {
+    showDeleteConfirm = false;
+    $deleteMutation.mutate();
+  }
+
   function getErrorMsg(err: unknown): string {
     if (err && typeof err === 'object' && 'response' in err) {
       const resp = (err as { response?: { data?: { error?: string } } }).response;
@@ -183,7 +265,7 @@
   {:else if styleData}
     {@const style = styleData}
 
-    {#if $addMutation.error || $removeMutation.error || $bindTagMutation.error || $unbindTagMutation.error}
+    {#if $addMutation.error || $removeMutation.error || $bindTagMutation.error || $unbindTagMutation.error || $updateMutation.error || $deleteMutation.error}
       <Alert color="red">
         {#if $addMutation.error}
           收藏失败：{getErrorMsg($addMutation.error)}
@@ -193,8 +275,16 @@
           绑定标签失败：{getErrorMsg($bindTagMutation.error)}
         {:else if $unbindTagMutation.error}
           解除标签绑定失败：{getErrorMsg($unbindTagMutation.error)}
+        {:else if $updateMutation.error}
+          更新失败：{getErrorMsg($updateMutation.error)}
+        {:else if $deleteMutation.error}
+          删除失败：{getErrorMsg($deleteMutation.error)}
         {/if}
       </Alert>
+    {/if}
+
+    {#if $updateMutation.isSuccess}
+      <Alert color="green">样式更新成功</Alert>
     {/if}
 
     <div class="flex items-center justify-between">
@@ -224,41 +314,155 @@
             ☆ 收藏
           </Button>
         {/if}
+        {#if !isEditing}
+          <Button
+            size="sm"
+            color="yellow"
+            onclick={enterEditMode}
+          >
+            编辑
+          </Button>
+          <Button
+            size="sm"
+            color="red"
+            onclick={() => showDeleteConfirm = true}
+            disabled={$deleteMutation.isPending}
+          >
+            删除
+          </Button>
+        {/if}
       </div>
     </div>
 
-    <Card class="max-w-none">
-      <dl class="grid grid-cols-1 gap-6 sm:grid-cols-2">
-        <div>
-          <dt class="text-sm text-gray-500">城市/街区</dt>
-          <dd class="mt-1 font-medium text-gray-800">{style.cityDistrict}</dd>
+    {#if isEditing}
+      {#if editFormError}
+        <Alert color="red" class="mb-4">{editFormError}</Alert>
+      {/if}
+      <Card class="max-w-none">
+        <h3 class="mb-4 text-base font-semibold text-gray-800">编辑样式</h3>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label for="editCityDistrict" class="mb-1 block text-sm font-medium text-gray-700">城市/街区 *</label>
+            <input
+              id="editCityDistrict"
+              type="text"
+              bind:value={editCityDistrict}
+              class="w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label for="editMaterial" class="mb-1 block text-sm font-medium text-gray-700">材质 *</label>
+            <input
+              id="editMaterial"
+              type="text"
+              bind:value={editMaterial}
+              class="w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label for="editFont" class="mb-1 block text-sm font-medium text-gray-700">字体 *</label>
+            <input
+              id="editFont"
+              type="text"
+              bind:value={editFont}
+              class="w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
+            />
+          </div>
+          <div>
+            <label for="editUnifiedReplacement" class="mb-1 block text-sm font-medium text-gray-700">是否统一更换</label>
+            <div class="flex items-center gap-2 pt-2.5">
+              <input
+                id="editUnifiedReplacement"
+                type="checkbox"
+                bind:checked={editUnifiedReplacement}
+                class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+              />
+              <span class="text-sm text-gray-700">{editUnifiedReplacement ? '是' : '否'}</span>
+            </div>
+          </div>
+          <div class="sm:col-span-2">
+            <label for="editNumberingRules" class="mb-1 block text-sm font-medium text-gray-700">编号规则 *</label>
+            <textarea
+              id="editNumberingRules"
+              bind:value={editNumberingRules}
+              rows="3"
+              class="w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
+            ></textarea>
+          </div>
         </div>
-        <div>
-          <dt class="text-sm text-gray-500">材质</dt>
-          <dd class="mt-1 font-medium text-gray-800">{style.material}</dd>
-        </div>
-        <div>
-          <dt class="text-sm text-gray-500">字体</dt>
-          <dd class="mt-1">
-            <Badge color="yellow" large>{style.font}</Badge>
-          </dd>
-        </div>
-        <div>
-          <dt class="text-sm text-gray-500">是否统一更换</dt>
-          <dd class="mt-1">
-            {#if style.unifiedReplacement}
-              <Badge color="green">是</Badge>
+        <div class="mt-4 flex justify-end gap-2">
+          <Button size="sm" color="alternative" onclick={cancelEdit} disabled={$updateMutation.isPending}>
+            取消
+          </Button>
+          <Button
+            size="sm"
+            color="yellow"
+            onclick={handleUpdateSubmit}
+            disabled={$updateMutation.isPending}
+          >
+            {#if $updateMutation.isPending}
+              保存中...
             {:else}
-              <Badge color="dark">否</Badge>
+              保存
             {/if}
-          </dd>
+          </Button>
         </div>
-        <div class="sm:col-span-2">
-          <dt class="text-sm text-gray-500">编号规则</dt>
-          <dd class="mt-1 whitespace-pre-wrap text-gray-700">{style.numberingRules}</dd>
+      </Card>
+    {:else}
+      <Card class="max-w-none">
+        <dl class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <div>
+            <dt class="text-sm text-gray-500">城市/街区</dt>
+            <dd class="mt-1 font-medium text-gray-800">{style.cityDistrict}</dd>
+          </div>
+          <div>
+            <dt class="text-sm text-gray-500">材质</dt>
+            <dd class="mt-1 font-medium text-gray-800">{style.material}</dd>
+          </div>
+          <div>
+            <dt class="text-sm text-gray-500">字体</dt>
+            <dd class="mt-1">
+              <Badge color="yellow" large>{style.font}</Badge>
+            </dd>
+          </div>
+          <div>
+            <dt class="text-sm text-gray-500">是否统一更换</dt>
+            <dd class="mt-1">
+              {#if style.unifiedReplacement}
+                <Badge color="green">是</Badge>
+              {:else}
+                <Badge color="dark">否</Badge>
+              {/if}
+            </dd>
+          </div>
+          <div class="sm:col-span-2">
+            <dt class="text-sm text-gray-500">编号规则</dt>
+            <dd class="mt-1 whitespace-pre-wrap text-gray-700">{style.numberingRules}</dd>
+          </div>
+        </dl>
+      </Card>
+    {/if}
+
+    <Modal bind:open={showDeleteConfirm} size="md">
+      <div class="text-center">
+        <h3 class="mb-5 text-lg font-semibold text-gray-800">确认删除</h3>
+        <p class="mb-5 text-sm text-gray-500">
+          确定要删除这个样式吗？删除后相关的收藏、探访记录和标签绑定也会被清除，此操作不可撤销。
+        </p>
+        <div class="flex justify-center gap-3">
+          <Button color="alternative" onclick={() => showDeleteConfirm = false}>
+            取消
+          </Button>
+          <Button color="red" onclick={handleDelete} disabled={$deleteMutation.isPending}>
+            {#if $deleteMutation.isPending}
+              删除中...
+            {:else}
+              确认删除
+            {/if}
+          </Button>
         </div>
-      </dl>
-    </Card>
+      </div>
+    </Modal>
 
     <div>
       <h3 class="mb-3 text-lg font-semibold text-gray-800">标签</h3>

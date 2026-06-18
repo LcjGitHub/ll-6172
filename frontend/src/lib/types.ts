@@ -8,6 +8,15 @@ export interface HousenoStyle {
   unifiedReplacement: boolean;
 }
 
+/** 创建/更新门牌号样式时的输入 */
+export interface HousenoStyleInput {
+  cityDistrict: string;
+  material: string;
+  font: string;
+  numberingRules: string;
+  unifiedReplacement: boolean;
+}
+
 /** 门牌号样式列表筛选条件 */
 export interface HousenoStyleFilter {
   /** 按标签精确筛选 */

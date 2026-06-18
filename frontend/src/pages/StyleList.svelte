@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createQuery, useQueryClient } from '@tanstack/svelte-query';
+  import { createQuery, createMutation, useQueryClient } from '@tanstack/svelte-query';
   import RouterLink from '../components/RouterLink.svelte';
   import {
     Table,
@@ -12,8 +12,10 @@
     Spinner,
     Alert,
     Button,
+    Card,
   } from 'flowbite-svelte';
-  import { fetchHousenoStyles, fetchHousenoStyleMaterials, fetchTags } from '../lib/api';
+  import { fetchHousenoStyles, fetchHousenoStyleMaterials, fetchTags, createHousenoStyle } from '../lib/api';
+  import type { HousenoStyleInput } from '../lib/types';
 
   let selectedTagId = $state<number | ''>('');
   let selectedMaterial = $state<string>('');
@@ -83,13 +85,168 @@
     keywordInput = '';
     debouncedKeyword = '';
   }
+
+  let showCreateForm = $state(false);
+  let newCityDistrict = $state('');
+  let newMaterial = $state('');
+  let newFont = $state('');
+  let newNumberingRules = $state('');
+  let newUnifiedReplacement = $state(false);
+  let createFormError = $state('');
+
+  function resetCreateForm() {
+    newCityDistrict = '';
+    newMaterial = '';
+    newFont = '';
+    newNumberingRules = '';
+    newUnifiedReplacement = false;
+    createFormError = '';
+  }
+
+  const createStyleMutation = createMutation({
+    mutationFn: (input: HousenoStyleInput) => createHousenoStyle(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['houseno-styles'] });
+      queryClient.invalidateQueries({ queryKey: ['houseno-style-materials'] });
+      queryClient.invalidateQueries({ queryKey: ['statistics'] });
+      resetCreateForm();
+      showCreateForm = false;
+    },
+  });
+
+  function handleCreateSubmit() {
+    createFormError = '';
+    if (!newCityDistrict.trim()) {
+      createFormError = '城市/街区为必填项';
+      return;
+    }
+    if (!newMaterial.trim()) {
+      createFormError = '材质为必填项';
+      return;
+    }
+    if (!newFont.trim()) {
+      createFormError = '字体为必填项';
+      return;
+    }
+    if (!newNumberingRules.trim()) {
+      createFormError = '编号规则为必填项';
+      return;
+    }
+    $createStyleMutation.mutate({
+      cityDistrict: newCityDistrict.trim(),
+      material: newMaterial.trim(),
+      font: newFont.trim(),
+      numberingRules: newNumberingRules.trim(),
+      unifiedReplacement: newUnifiedReplacement,
+    });
+  }
+
+  function getErrorMsg(err: unknown): string {
+    if (err && typeof err === 'object' && 'response' in err) {
+      const resp = (err as { response?: { data?: { error?: string } } }).response;
+      if (resp?.data?.error) return resp.data.error;
+    }
+    return '操作失败，请稍后重试';
+  }
 </script>
 
 <div class="space-y-6">
-  <div>
-    <h2 class="text-lg font-semibold text-gray-800">样式列表</h2>
-    <p class="mt-1 text-sm text-gray-500">支持按材质、是否统一更换、城市/街区关键字组合筛选</p>
+  <div class="flex items-center justify-between">
+    <div>
+      <h2 class="text-lg font-semibold text-gray-800">样式列表</h2>
+      <p class="mt-1 text-sm text-gray-500">支持按材质、是否统一更换、城市/街区关键字组合筛选</p>
+    </div>
+    <Button size="sm" color="yellow" onclick={() => showCreateForm = !showCreateForm}>
+      {showCreateForm ? '取消' : '+ 新建样式'}
+    </Button>
   </div>
+
+  {#if showCreateForm}
+    {#if $createStyleMutation.error}
+      <Alert color="red">创建失败：{getErrorMsg($createStyleMutation.error)}</Alert>
+    {/if}
+    {#if $createStyleMutation.isSuccess}
+      <Alert color="green">样式创建成功</Alert>
+    {/if}
+    {#if createFormError}
+      <Alert color="red">{createFormError}</Alert>
+    {/if}
+
+    <Card class="max-w-none">
+      <h3 class="mb-4 text-base font-semibold text-gray-800">新建样式</h3>
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label for="newCityDistrict" class="mb-1 block text-sm font-medium text-gray-700">城市/街区 *</label>
+          <input
+            id="newCityDistrict"
+            type="text"
+            bind:value={newCityDistrict}
+            placeholder="例如：北京市朝阳区"
+            class="w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
+          />
+        </div>
+        <div>
+          <label for="newMaterial" class="mb-1 block text-sm font-medium text-gray-700">材质 *</label>
+          <input
+            id="newMaterial"
+            type="text"
+            bind:value={newMaterial}
+            placeholder="例如：亚克力"
+            class="w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
+          />
+        </div>
+        <div>
+          <label for="newFont" class="mb-1 block text-sm font-medium text-gray-700">字体 *</label>
+          <input
+            id="newFont"
+            type="text"
+            bind:value={newFont}
+            placeholder="例如：黑体"
+            class="w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
+          />
+        </div>
+        <div>
+          <label for="newUnifiedReplacement" class="mb-1 block text-sm font-medium text-gray-700">是否统一更换</label>
+          <div class="flex items-center gap-2 pt-2.5">
+            <input
+              id="newUnifiedReplacement"
+              type="checkbox"
+              bind:checked={newUnifiedReplacement}
+              class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+            />
+            <span class="text-sm text-gray-700">{newUnifiedReplacement ? '是' : '否'}</span>
+          </div>
+        </div>
+        <div class="sm:col-span-2">
+          <label for="newNumberingRules" class="mb-1 block text-sm font-medium text-gray-700">编号规则 *</label>
+          <textarea
+            id="newNumberingRules"
+            bind:value={newNumberingRules}
+            rows="3"
+            placeholder="例如：按街道方向自东向西，单号在北，双号在南，每 50 米一个号段"
+            class="w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
+          ></textarea>
+        </div>
+      </div>
+      <div class="mt-4 flex justify-end gap-2">
+        <Button size="sm" color="alternative" onclick={() => { showCreateForm = false; resetCreateForm(); }}>
+          取消
+        </Button>
+        <Button
+          size="sm"
+          color="yellow"
+          onclick={handleCreateSubmit}
+          disabled={$createStyleMutation.isPending}
+        >
+          {#if $createStyleMutation.isPending}
+            创建中...
+          {:else}
+            创建样式
+          {/if}
+        </Button>
+      </div>
+    </Card>
+  {/if}
 
   <div class="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
     <div class="flex flex-col gap-1">

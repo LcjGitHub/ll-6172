@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { HousenoStyle, HousenoStyleFilter, Favorite, FavoriteWithStyle, Material, StatisticsOverview, VisitRecord, VisitRecordInput, Tag } from './types';
+import type { HousenoStyle, HousenoStyleInput, HousenoStyleFilter, Favorite, FavoriteWithStyle, Material, StatisticsOverview, VisitRecord, VisitRecordInput, Tag } from './types';
 
 const api = axios.create({
   baseURL: '/api',
@@ -37,6 +37,23 @@ export async function fetchHousenoStyleMaterials(): Promise<string[]> {
 export async function fetchHousenoStyle(id: number): Promise<HousenoStyle> {
   const { data } = await api.get<HousenoStyle>(`/houseno-styles/${id}`);
   return data;
+}
+
+/** 创建门牌号样式 */
+export async function createHousenoStyle(input: HousenoStyleInput): Promise<HousenoStyle> {
+  const { data } = await api.post<HousenoStyle>('/houseno-styles', input);
+  return data;
+}
+
+/** 更新门牌号样式 */
+export async function updateHousenoStyle(id: number, input: HousenoStyleInput): Promise<HousenoStyle> {
+  const { data } = await api.put<HousenoStyle>(`/houseno-styles/${id}`, input);
+  return data;
+}
+
+/** 删除门牌号样式 */
+export async function deleteHousenoStyle(id: number): Promise<void> {
+  await api.delete(`/houseno-styles/${id}`);
 }
 
 /** 获取收藏列表（含样式详情） */

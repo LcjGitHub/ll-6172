@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import db from '../db';
-import type { HousenoStyle, Tag } from '../types';
+import type { HousenoStyle, Tag, HousenoStyleInput } from '../types';
 
 const router = Router();
 
@@ -201,6 +201,136 @@ router.delete('/:id/tags/:tagId', (req: Request, res: Response) => {
     res.json(rows.map(rowToTag));
   } catch (err) {
     res.status(500).json({ error: '解除标签绑定失败' });
+  }
+});
+
+function validateStyleInput(body: unknown): { valid: boolean; error?: string; data?: HousenoStyleInput } {
+  if (!body || typeof body !== 'object') {
+    return { valid: false, error: '请求体格式不正确' };
+  }
+
+  const { cityDistrict, material, font, numberingRules, unifiedReplacement } = body as Record<string, unknown>;
+
+  if (!cityDistrict || typeof cityDistrict !== 'string' || cityDistrict.trim() === '') {
+    return { valid: false, error: '城市/街区为必填项' };
+  }
+
+  if (!material || typeof material !== 'string' || material.trim() === '') {
+    return { valid: false, error: '材质为必填项' };
+  }
+
+  if (!font || typeof font !== 'string' || font.trim() === '') {
+    return { valid: false, error: '字体为必填项' };
+  }
+
+  if (!numberingRules || typeof numberingRules !== 'string' || numberingRules.trim() === '') {
+    return { valid: false, error: '编号规则为必填项' };
+  }
+
+  if (typeof unifiedReplacement !== 'boolean') {
+    return { valid: false, error: '统一更换格式不正确' };
+  }
+
+  return {
+    valid: true,
+    data: {
+      cityDistrict: cityDistrict.trim(),
+      material: material.trim(),
+      font: font.trim(),
+      numberingRules: numberingRules.trim(),
+      unifiedReplacement,
+    },
+  };
+}
+
+router.post('/', (req: Request, res: Response) => {
+  const validation = validateStyleInput(req.body);
+  if (!validation.valid || !validation.data) {
+    res.status(400).json({ error: validation.error });
+    return;
+  }
+
+  const { cityDistrict, material, font, numberingRules, unifiedReplacement } = validation.data;
+
+  try {
+    const result = db
+      .prepare(
+        'INSERT INTO houseno_styles (city_district, material, font, numbering_rules, unified_replacement) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run(cityDistrict, material, font, numberingRules, unifiedReplacement ? 1 : 0);
+
+    const row = db
+      .prepare('SELECT * FROM houseno_styles WHERE id = ?')
+      .get(result.lastInsertRowid) as DbRow;
+
+    res.status(201).json(rowToStyle(row));
+  } catch (err) {
+    res.status(500).json({ error: '创建样式失败' });
+  }
+});
+
+router.put('/:id', (req: Request, res: Response) => {
+  const styleId = parseInt(req.params.id as string, 10);
+
+  if (isNaN(styleId)) {
+    res.status(400).json({ error: '无效的样式编号' });
+    return;
+  }
+
+  const existing = db
+    .prepare('SELECT id FROM houseno_styles WHERE id = ?')
+    .get(styleId) as { id: number } | undefined;
+
+  if (!existing) {
+    res.status(404).json({ error: '门牌号样式不存在' });
+    return;
+  }
+
+  const validation = validateStyleInput(req.body);
+  if (!validation.valid || !validation.data) {
+    res.status(400).json({ error: validation.error });
+    return;
+  }
+
+  const { cityDistrict, material, font, numberingRules, unifiedReplacement } = validation.data;
+
+  try {
+    db.prepare(
+      'UPDATE houseno_styles SET city_district = ?, material = ?, font = ?, numbering_rules = ?, unified_replacement = ? WHERE id = ?',
+    ).run(cityDistrict, material, font, numberingRules, unifiedReplacement ? 1 : 0, styleId);
+
+    const row = db
+      .prepare('SELECT * FROM houseno_styles WHERE id = ?')
+      .get(styleId) as DbRow;
+
+    res.json(rowToStyle(row));
+  } catch (err) {
+    res.status(500).json({ error: '更新样式失败' });
+  }
+});
+
+router.delete('/:id', (req: Request, res: Response) => {
+  const styleId = parseInt(req.params.id as string, 10);
+
+  if (isNaN(styleId)) {
+    res.status(400).json({ error: '无效的样式编号' });
+    return;
+  }
+
+  const existing = db
+    .prepare('SELECT id FROM houseno_styles WHERE id = ?')
+    .get(styleId) as { id: number } | undefined;
+
+  if (!existing) {
+    res.status(404).json({ error: '门牌号样式不存在' });
+    return;
+  }
+
+  try {
+    db.prepare('DELETE FROM houseno_styles WHERE id = ?').run(styleId);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '删除样式失败' });
   }
 });
 
