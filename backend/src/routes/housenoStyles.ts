@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import db from '../db';
-import type { HousenoStyle, Tag, HousenoStyleInput, PaginatedResult, SortField, SortOrder } from '../types';
+import type { HousenoStyle, HousenoStyleDetail, Tag, HousenoStyleInput, PaginatedResult, SortField, SortOrder } from '../types';
 
 const router = Router();
 
@@ -138,7 +138,18 @@ router.get('/:id', (req: Request, res: Response) => {
     return;
   }
 
-  res.json(rowToStyle(row));
+  const style = rowToStyle(row);
+
+  const sameMaterialRows = db
+    .prepare('SELECT * FROM houseno_styles WHERE material = ? AND id != ? LIMIT 3')
+    .all(style.material, style.id) as DbRow[];
+
+  const result: HousenoStyleDetail = {
+    style,
+    sameMaterialStyles: sameMaterialRows.map(rowToStyle),
+  };
+
+  res.json(result);
 });
 
 router.get('/:id/tags', (req: Request, res: Response) => {

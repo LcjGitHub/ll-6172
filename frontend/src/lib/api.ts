@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { HousenoStyle, HousenoStyleInput, HousenoStyleFilter, Favorite, FavoriteWithStyle, Material, StatisticsOverview, VisitRecord, VisitRecordInput, Tag, PaginatedResult } from './types';
+import type { HousenoStyle, HousenoStyleDetail, HousenoStyleInput, HousenoStyleFilter, Favorite, FavoriteWithStyle, Material, StatisticsOverview, VisitRecord, VisitRecordInput, Tag, PaginatedResult } from './types';
 
 const api = axios.create({
   baseURL: '/api',
@@ -45,9 +45,9 @@ export async function fetchHousenoStyleMaterials(): Promise<string[]> {
   return data;
 }
 
-/** 获取单条门牌号样式详情 */
-export async function fetchHousenoStyle(id: number): Promise<HousenoStyle> {
-  const { data } = await api.get<HousenoStyle>(`/houseno-styles/${id}`);
+/** 获取单条门牌号样式详情（含同材质推荐） */
+export async function fetchHousenoStyle(id: number): Promise<HousenoStyleDetail> {
+  const { data } = await api.get<HousenoStyleDetail>(`/houseno-styles/${id}`);
   return data;
 }
 

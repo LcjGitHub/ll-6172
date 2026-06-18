@@ -90,6 +90,12 @@ export interface StyleTag {
   createdAt: string;
 }
 
+/** 门牌号样式详情（含同材质推荐） */
+export interface HousenoStyleDetail {
+  style: HousenoStyle;
+  sameMaterialStyles: HousenoStyle[];
+}
+
 /** 分页结果 */
 export interface PaginatedResult<T> {
   items: T[];

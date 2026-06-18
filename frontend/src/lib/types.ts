@@ -37,6 +37,12 @@ export interface HousenoStyleFilter {
   pageSize?: number;
 }
 
+/** 门牌号样式详情（含同材质推荐） */
+export interface HousenoStyleDetail {
+  style: HousenoStyle;
+  sameMaterialStyles: HousenoStyle[];
+}
+
 /** 排序字段 */
 export type SortField = 'material' | 'cityDistrict';
 

@@ -4,7 +4,7 @@
   import RouterLink from '../components/RouterLink.svelte';
   import { Badge, Spinner, Alert, Card, Button, Modal } from 'flowbite-svelte';
   import { fetchHousenoStyle, fetchFavorites, addFavorite, removeFavorite, fetchVisitRecords, createVisitRecord, fetchTags, fetchStyleTags, bindStyleTag, unbindStyleTag, updateHousenoStyle, deleteHousenoStyle } from '../lib/api';
-  import type { HousenoStyle, VisitRecord, Tag, HousenoStyleInput } from '../lib/types';
+  import type { HousenoStyle, HousenoStyleDetail, VisitRecord, Tag, HousenoStyleInput } from '../lib/types';
 
   interface Props {
     id: string;
@@ -126,8 +126,8 @@
 
   const updateMutation = createMutation({
     mutationFn: (input: HousenoStyleInput) => updateHousenoStyle(parseInt(id, 10), input),
-    onSuccess: (data) => {
-      queryClient.setQueryData(['houseno-style', id], data);
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['houseno-style', id] });
       queryClient.invalidateQueries({ queryKey: ['houseno-styles'] });
       queryClient.invalidateQueries({ queryKey: ['houseno-style-materials'] });
       queryClient.invalidateQueries({ queryKey: ['statistics'] });
@@ -189,7 +189,8 @@
     return '操作失败，请稍后重试';
   }
 
-  const styleData = $derived($styleQuery.data as HousenoStyle | undefined);
+  const styleData = $derived(($styleQuery.data as HousenoStyleDetail | undefined)?.style);
+  const sameMaterialStyles = $derived(($styleQuery.data as HousenoStyleDetail | undefined)?.sameMaterialStyles ?? []);
 
   const visitRecordsQuery = createQuery({
     queryKey: ['visit-records', id],
@@ -664,5 +665,37 @@
         </div>
       {/if}
     </div>
+
+    {#if sameMaterialStyles.length > 0}
+      <div class="mt-8">
+        <h3 class="mb-4 text-lg font-semibold text-gray-800">同材质样式</h3>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {#each sameMaterialStyles as rec (rec.id)}
+            <Card class="cursor-pointer transition-shadow hover:shadow-md" onclick={() => navigate(`/styles/${rec.id}`)}>
+              <dl class="space-y-2">
+                <div>
+                  <dt class="text-xs text-gray-500">城市/街区</dt>
+                  <dd class="text-sm font-medium text-gray-800">{rec.cityDistrict}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-gray-500">字体</dt>
+                  <dd class="text-sm"><Badge color="yellow">{rec.font}</Badge></dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-gray-500">是否统一更换</dt>
+                  <dd class="text-sm">
+                    {#if rec.unifiedReplacement}
+                      <Badge color="green">是</Badge>
+                    {:else}
+                      <Badge color="dark">否</Badge>
+                    {/if}
+                  </dd>
+                </div>
+              </dl>
+            </Card>
+          {/each}
+        </div>
+      </div>
+    {/if}
   {/if}
 </div>
