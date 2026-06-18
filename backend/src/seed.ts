@@ -177,7 +177,7 @@ export function seedDatabase(database: DbInstance, force = false): { styles: num
   return { styles: insertedStyles, materials: insertedMaterials, tags: insertedTags };
 }
 
-if (require.main === undefined || !process.env.DISABLE_AUTO_SEED) {
+if (!process.env.DISABLE_AUTO_SEED) {
   const result = seedDatabase(db);
   if (result.styles > 0) {
     console.log(`[seed] 已插入 ${result.styles} 条门牌号样式数据`);
