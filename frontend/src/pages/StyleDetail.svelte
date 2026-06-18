@@ -667,15 +667,25 @@
     </div>
 
     {#if sameMaterialStyles.length > 0}
-      <div class="mt-8">
-        <h3 class="mb-4 text-lg font-semibold text-gray-800">同材质样式</h3>
+      <section class="mt-8" aria-labelledby="same-material-heading">
+        <h3 id="same-material-heading" class="mb-4 text-lg font-semibold text-gray-800">同材质样式</h3>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {#each sameMaterialStyles as rec (rec.id)}
-            <Card class="cursor-pointer transition-shadow hover:shadow-md" onclick={() => navigate(`/styles/${rec.id}`)}>
+            <a
+              href="/styles/{rec.id}"
+              onclick={(e) => { e.preventDefault(); navigate(`/styles/${rec.id}`); }}
+              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/styles/${rec.id}`); } }}
+              class="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2"
+              aria-label="查看{rec.cityDistrict}样式详情"
+            >
               <dl class="space-y-2">
                 <div>
                   <dt class="text-xs text-gray-500">城市/街区</dt>
                   <dd class="text-sm font-medium text-gray-800">{rec.cityDistrict}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs text-gray-500">材质</dt>
+                  <dd class="text-sm font-medium text-gray-800">{rec.material}</dd>
                 </div>
                 <div>
                   <dt class="text-xs text-gray-500">字体</dt>
@@ -692,10 +702,10 @@
                   </dd>
                 </div>
               </dl>
-            </Card>
+            </a>
           {/each}
         </div>
-      </div>
+      </section>
     {/if}
   {/if}
 </div>

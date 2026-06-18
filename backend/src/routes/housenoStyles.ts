@@ -141,7 +141,7 @@ router.get('/:id', (req: Request, res: Response) => {
   const style = rowToStyle(row);
 
   const sameMaterialRows = db
-    .prepare('SELECT * FROM houseno_styles WHERE material = ? AND id != ? LIMIT 3')
+    .prepare('SELECT * FROM houseno_styles WHERE material = ? AND id != ? ORDER BY id DESC LIMIT 3')
     .all(style.material, style.id) as DbRow[];
 
   const result: HousenoStyleDetail = {
