@@ -3,8 +3,11 @@
   import { navigate } from '../lib/router';
   import RouterLink from '../components/RouterLink.svelte';
   import { Badge, Spinner, Alert, Card, Button, Modal } from 'flowbite-svelte';
-  import { fetchHousenoStyle, fetchFavorites, addFavorite, removeFavorite, fetchVisitRecords, createVisitRecord, fetchTags, fetchStyleTags, bindStyleTag, unbindStyleTag, updateHousenoStyle, deleteHousenoStyle } from '../lib/api';
-  import type { HousenoStyle, HousenoStyleDetail, VisitRecord, Tag, HousenoStyleInput } from '../lib/types';
+  import { fetchHousenoStyle, updateHousenoStyle, deleteHousenoStyle } from '../lib/api';
+  import { useFavorites } from '../lib/useFavorites.svelte';
+  import { useStyleTags } from '../lib/useStyleTags.svelte';
+  import { useVisitRecords } from '../lib/useVisitRecords.svelte';
+  import type { HousenoStyle, HousenoStyleDetail, HousenoStyleInput, VisitRecord, Tag } from '../lib/types';
 
   interface Props {
     id: string;
@@ -23,25 +26,25 @@
     enabled: isValidId,
   });
 
-  const favoritesQuery = createQuery({
-    queryKey: ['favorites'],
-    queryFn: fetchFavorites,
-  });
+  const { favoritesQuery, addMutation, removeMutation } = useFavorites(numericId);
+  const {
+    allTagsQuery,
+    styleTagsQuery,
+    tagState,
+    handleTagSelect,
+    bindTagMutation,
+    unbindTagMutation,
+    getBadgeColor,
+  } = useStyleTags(id, numericId, isValidId);
+  const {
+    visitRecordsQuery,
+    formState,
+    addVisitMutation,
+  } = useVisitRecords(id, numericId, isValidId);
 
   const isFavorited = $derived(
     ($favoritesQuery.data ?? []).some((fav) => fav.styleId === numericId),
   );
-
-  const allTagsQuery = createQuery({
-    queryKey: ['tags'],
-    queryFn: fetchTags,
-  });
-
-  const styleTagsQuery = createQuery({
-    queryKey: ['style-tags', id],
-    queryFn: () => fetchStyleTags(parseInt(id, 10)),
-    enabled: isValidId,
-  });
 
   const boundTagIds = $derived(
     new Set(($styleTagsQuery.data ?? []).map((t) => t.id)),
@@ -50,55 +53,6 @@
   const availableTags = $derived(
     ($allTagsQuery.data ?? []).filter((t) => !boundTagIds.has(t.id)),
   );
-
-  let selectedTagId = $state<number | ''>('');
-
-  function handleTagSelect(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    const value = target.value;
-    selectedTagId = value === '' ? '' : parseInt(value, 10);
-  }
-
-  const addMutation = createMutation({
-    mutationFn: () => addFavorite(parseInt(id, 10)),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['favorites'] });
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: ['favorites'] });
-    },
-  });
-
-  const removeMutation = createMutation({
-    mutationFn: () => removeFavorite(parseInt(id, 10)),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['favorites'] });
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: ['favorites'] });
-    },
-  });
-
-  const bindTagMutation = createMutation({
-    mutationFn: (tagId: number) => bindStyleTag(parseInt(id, 10), tagId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['style-tags', id] });
-      selectedTagId = '';
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: ['style-tags', id] });
-    },
-  });
-
-  const unbindTagMutation = createMutation({
-    mutationFn: (tagId: number) => unbindStyleTag(parseInt(id, 10), tagId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['style-tags', id] });
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: ['style-tags', id] });
-    },
-  });
 
   let isEditing = $state(false);
   let editCityDistrict = $state('');
@@ -189,62 +143,56 @@
     return '操作失败，请稍后重试';
   }
 
-  const styleData = $derived(($styleQuery.data as HousenoStyleDetail | undefined)?.style);
-  const sameMaterialStyles = $derived(($styleQuery.data as HousenoStyleDetail | undefined)?.sameMaterialStyles ?? []);
-
-  const visitRecordsQuery = createQuery({
-    queryKey: ['visit-records', id],
-    queryFn: () => fetchVisitRecords(parseInt(id, 10)),
-    enabled: isValidId,
-  });
-
-  let newVisitDate = $state('');
-  let newLocationNotes = $state('');
-  let newPlateVisible = $state(false);
-  let formError = $state('');
-
-  function resetForm() {
-    newVisitDate = '';
-    newLocationNotes = '';
-    newPlateVisible = false;
-    formError = '';
+  function toButtonColor(color: string): 'blue' | 'red' | 'purple' | 'green' | 'yellow' | 'dark' | 'none' | 'light' | 'primary' | 'alternative' | undefined {
+    const map: Record<string, 'blue' | 'red' | 'purple' | 'green' | 'yellow' | 'dark' | 'none' | 'light' | 'primary' | 'alternative'> = {
+      amber: 'yellow',
+      blue: 'blue',
+      red: 'red',
+      purple: 'purple',
+      green: 'green',
+      pink: 'purple',
+      indigo: 'blue',
+      yellow: 'yellow',
+      teal: 'green',
+      cyan: 'blue',
+      dark: 'dark',
+    };
+    return map[color] ?? 'yellow';
   }
 
-  const addVisitMutation = createMutation({
-    mutationFn: () =>
-      createVisitRecord({
-        styleId: parseInt(id, 10),
-        visitDate: newVisitDate,
-        locationNotes: newLocationNotes,
-        plateVisible: newPlateVisible,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visit-records', id] });
-      resetForm();
-    },
-    onError: () => {
-      queryClient.invalidateQueries({ queryKey: ['visit-records', id] });
-    },
-  });
+  function toBadgeColor(color: string): 'blue' | 'red' | 'purple' | 'green' | 'pink' | 'indigo' | 'yellow' | 'dark' | 'none' | 'primary' | undefined {
+    const map: Record<string, 'blue' | 'red' | 'purple' | 'green' | 'pink' | 'indigo' | 'yellow' | 'dark' | 'none' | 'primary'> = {
+      amber: 'yellow',
+      blue: 'blue',
+      red: 'red',
+      purple: 'purple',
+      green: 'green',
+      pink: 'pink',
+      indigo: 'indigo',
+      yellow: 'yellow',
+      teal: 'green',
+      cyan: 'blue',
+      dark: 'dark',
+    };
+    return map[color] ?? 'yellow';
+  }
+
+  function handleBindTag() {
+    if (tagState.selectedTagId === '') return;
+    $bindTagMutation.mutate(tagState.selectedTagId);
+  }
 
   function handleAddVisit() {
-    formError = '';
-    if (!newVisitDate) {
-      formError = '探访日期为必填项';
+    formState.formError = '';
+    if (!formState.newVisitDate) {
+      formState.formError = '探访日期为必填项';
       return;
     }
     $addVisitMutation.mutate();
   }
 
-  function handleBindTag() {
-    if (selectedTagId === '') return;
-    $bindTagMutation.mutate(selectedTagId);
-  }
-
-  function getBadgeColor(color: string): 'amber' | 'blue' | 'red' | 'purple' | 'green' | 'pink' | 'indigo' | 'yellow' | 'teal' | 'cyan' | 'dark' {
-    const validColors = ['amber', 'blue', 'red', 'purple', 'green', 'pink', 'indigo', 'yellow', 'teal', 'cyan', 'dark'] as const;
-    return (validColors.includes(color as typeof validColors[number]) ? color : 'amber') as typeof validColors[number];
-  }
+  const styleData = $derived(($styleQuery.data as HousenoStyleDetail | undefined)?.style);
+  const sameMaterialStyles = $derived(($styleQuery.data as HousenoStyleDetail | undefined)?.sameMaterialStyles ?? []);
 </script>
 
 <div class="space-y-6">
@@ -506,7 +454,7 @@
                 <div class="flex flex-wrap gap-2">
                   {#each boundTags as tag (tag.id)}
                     <span class="inline-flex items-center gap-1">
-                      <Badge color={getBadgeColor(tag.color)} large>
+                      <Badge color={toBadgeColor(getBadgeColor(tag.color))} large>
                         {tag.name}
                       </Badge>
                       <button
@@ -528,7 +476,7 @@
               <div class="text-sm text-gray-500 mb-2">添加标签</div>
               <div class="flex items-center gap-2">
                 <select
-                  value={selectedTagId}
+                  value={tagState.selectedTagId}
                   onchange={handleTagSelect}
                   class="flex-1 rounded-lg border border-gray-300 bg-gray-50 p-2 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
                   disabled={availableTags.length === 0 || $bindTagMutation.isPending}
@@ -542,9 +490,9 @@
                 </select>
                 <Button
                   size="sm"
-                  color="amber"
+                  color="yellow"
                   onclick={handleBindTag}
-                  disabled={selectedTagId === '' || $bindTagMutation.isPending}
+                  disabled={tagState.selectedTagId === '' || $bindTagMutation.isPending}
                 >
                   {#if $bindTagMutation.isPending}
                     添加中...
@@ -609,8 +557,8 @@
             <Alert color="green" class="mb-3" role="status" aria-live="polite">探访记录已添加</Alert>
           {/if}
 
-          {#if formError}
-            <Alert color="red" class="mb-3" role="alert" aria-live="assertive">{formError}</Alert>
+          {#if formState.formError}
+            <Alert color="red" class="mb-3" role="alert" aria-live="assertive">{formState.formError}</Alert>
           {/if}
 
           <Card class="max-w-none">
@@ -620,7 +568,7 @@
                 <input
                   id="visitDate"
                   type="date"
-                  bind:value={newVisitDate}
+                  bind:value={formState.newVisitDate}
                   class="w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
                 />
               </div>
@@ -630,17 +578,17 @@
                   <input
                     id="plateVisible"
                     type="checkbox"
-                    bind:checked={newPlateVisible}
+                    bind:checked={formState.newPlateVisible}
                     class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
                   />
-                  <span class="text-sm text-gray-700">{newPlateVisible ? '是' : '否'}</span>
+                  <span class="text-sm text-gray-700">{formState.newPlateVisible ? '是' : '否'}</span>
                 </div>
               </div>
               <div class="sm:col-span-2">
                 <label for="locationNotes" class="mb-1 block text-sm font-medium text-gray-700">探访地点备注</label>
                 <textarea
                   id="locationNotes"
-                  bind:value={newLocationNotes}
+                  bind:value={formState.newLocationNotes}
                   rows="2"
                   class="w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm text-gray-900 focus:border-amber-500 focus:ring-amber-500"
                   placeholder="输入探访地点相关备注..."
@@ -650,7 +598,7 @@
             <div class="mt-4 flex justify-end">
               <Button
                 size="sm"
-                color="amber"
+                color="yellow"
                 onclick={() => handleAddVisit()}
                 disabled={$addVisitMutation.isPending}
               >
