@@ -87,6 +87,7 @@
   }
 
   let showCreateForm = $state(false);
+  let showCreateSuccess = $state(false);
   let newCityDistrict = $state('');
   let newMaterial = $state('');
   let newFont = $state('');
@@ -111,6 +112,10 @@
       queryClient.invalidateQueries({ queryKey: ['statistics'] });
       resetCreateForm();
       showCreateForm = false;
+      showCreateSuccess = true;
+      setTimeout(() => {
+        showCreateSuccess = false;
+      }, 3000);
     },
   });
 
@@ -161,15 +166,16 @@
     </Button>
   </div>
 
+  {#if showCreateSuccess}
+    <Alert color="green" role="status" aria-live="polite">样式创建成功</Alert>
+  {/if}
+
   {#if showCreateForm}
     {#if $createStyleMutation.error}
-      <Alert color="red">创建失败：{getErrorMsg($createStyleMutation.error)}</Alert>
-    {/if}
-    {#if $createStyleMutation.isSuccess}
-      <Alert color="green">样式创建成功</Alert>
+      <Alert color="red" role="alert" aria-live="assertive">创建失败：{getErrorMsg($createStyleMutation.error)}</Alert>
     {/if}
     {#if createFormError}
-      <Alert color="red">{createFormError}</Alert>
+      <Alert color="red" role="alert" aria-live="assertive">{createFormError}</Alert>
     {/if}
 
     <Card class="max-w-none">
@@ -313,9 +319,9 @@
       <span class="sr-only">正在加载样式数据</span>
     </div>
   {:else if $stylesQuery.isError}
-    <Alert color="red">无法加载样式列表，请确认后端已启动（端口 4000）</Alert>
+    <Alert color="red" role="alert" aria-live="assertive">无法加载样式列表，请确认后端已启动（端口 4000）</Alert>
   {:else if ($stylesQuery.data ?? []).length === 0}
-    <Alert color="yellow">
+    <Alert color="yellow" role="status" aria-live="polite">
       {hasFilter
         ? '没有符合筛选条件的样式数据，可清除筛选后重试。'
         : '暂无门牌号样式数据，请运行 npm run seed 初始化。'}

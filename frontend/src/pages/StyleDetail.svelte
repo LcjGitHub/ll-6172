@@ -255,18 +255,18 @@
   </RouterLink>
 
   {#if !isValidId}
-    <Alert color="red">无效的样式 ID</Alert>
+    <Alert color="red" role="alert" aria-live="assertive">无效的样式 ID</Alert>
   {:else if $styleQuery.isPending}
     <div class="flex justify-center py-12">
       <Spinner size="8" />
     </div>
   {:else if $styleQuery.isError}
-    <Alert color="red">样式不存在或后端未启动</Alert>
+    <Alert color="red" role="alert" aria-live="assertive">样式不存在或后端未启动</Alert>
   {:else if styleData}
     {@const style = styleData}
 
     {#if $addMutation.error || $removeMutation.error || $bindTagMutation.error || $unbindTagMutation.error || $updateMutation.error || $deleteMutation.error}
-      <Alert color="red">
+      <Alert color="red" role="alert" aria-live="assertive">
         {#if $addMutation.error}
           收藏失败：{getErrorMsg($addMutation.error)}
         {:else if $removeMutation.error}
@@ -284,11 +284,12 @@
     {/if}
 
     {#if $updateMutation.isSuccess}
-      <Alert color="green">样式更新成功</Alert>
+      <Alert color="green" role="status" aria-live="polite">样式更新成功</Alert>
     {/if}
 
+    {@const displayTitle = isEditing ? (editCityDistrict.trim() || style.cityDistrict) : style.cityDistrict}
     <div class="flex items-center justify-between">
-      <h2 class="text-lg font-semibold text-gray-800">{style.cityDistrict}</h2>
+      <h2 class="text-lg font-semibold text-gray-800">{displayTitle}</h2>
       <div class="flex items-center gap-3">
         {#if style.unifiedReplacement}
           <Badge color="green" large>已统一更换</Badge>
@@ -336,7 +337,7 @@
 
     {#if isEditing}
       {#if editFormError}
-        <Alert color="red" class="mb-4">{editFormError}</Alert>
+        <Alert color="red" class="mb-4" role="alert" aria-live="assertive">{editFormError}</Alert>
       {/if}
       <Card class="max-w-none">
         <h3 class="mb-4 text-base font-semibold text-gray-800">编辑样式</h3>
@@ -443,9 +444,27 @@
       </Card>
     {/if}
 
-    <Modal bind:open={showDeleteConfirm} size="md">
+    <Modal
+      bind:open={showDeleteConfirm}
+      size="md"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="delete-modal-title"
+    >
+      <h3 id="delete-modal-title" slot="header" class="text-lg font-semibold text-gray-800">
+        确认删除
+        <button
+          type="button"
+          aria-label="关闭删除确认弹窗"
+          class="absolute end-3 top-3 rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900"
+          onclick={() => showDeleteConfirm = false}
+        >
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </h3>
       <div class="text-center">
-        <h3 class="mb-5 text-lg font-semibold text-gray-800">确认删除</h3>
         <p class="mb-5 text-sm text-gray-500">
           确定要删除这个样式吗？删除后相关的收藏、探访记录和标签绑定也会被清除，此操作不可撤销。
         </p>
@@ -472,7 +491,7 @@
           <Spinner size="6" />
         </div>
       {:else if $allTagsQuery.isError || $styleTagsQuery.isError}
-        <Alert color="red">加载标签数据失败</Alert>
+        <Alert color="red" role="alert" aria-live="assertive">加载标签数据失败</Alert>
       {:else}
         {@const boundTags = ($styleTagsQuery.data ?? []) as Tag[]}
 
@@ -547,7 +566,7 @@
           <Spinner size="6" />
         </div>
       {:else if $visitRecordsQuery.isError}
-        <Alert color="red">加载探访记录失败</Alert>
+        <Alert color="red" role="alert" aria-live="assertive">加载探访记录失败</Alert>
       {:else}
         {@const records = ($visitRecordsQuery.data ?? []) as VisitRecord[]}
 
@@ -586,11 +605,11 @@
           <h4 class="mb-3 text-base font-medium text-gray-700">新增探访记录</h4>
 
           {#if $addVisitMutation.isSuccess}
-            <Alert color="green" class="mb-3">探访记录已添加</Alert>
+            <Alert color="green" class="mb-3" role="status" aria-live="polite">探访记录已添加</Alert>
           {/if}
 
           {#if formError}
-            <Alert color="red" class="mb-3">{formError}</Alert>
+            <Alert color="red" class="mb-3" role="alert" aria-live="assertive">{formError}</Alert>
           {/if}
 
           <Card class="max-w-none">
