@@ -21,7 +21,6 @@
     "@tanstack/svelte-query": "^5.66.0",
     "axios": "^1.7.9",
     "flowbite": "^2.5.2",
-    "flowbite-svelte": "^0.47.4",
-    "houseno-font-atlas": "file:.."
+    "flowbite-svelte": "^0.47.4"
   }
 }

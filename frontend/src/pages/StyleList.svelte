@@ -39,7 +39,7 @@
       return;
     }
     void filters;
-    queryClient.invalidateQueries({ queryKey: ['houseno-styles'] });
+    queryClient.resetQueries({ queryKey: ['houseno-styles'] });
   });
 
   const hasFilter = $derived(
@@ -151,8 +151,9 @@
   </div>
 
   {#if $stylesQuery.isPending}
-    <div class="flex justify-center py-12">
+    <div role="status" aria-live="polite" class="flex justify-center py-12">
       <Spinner size="8" />
+      <span class="sr-only">正在加载样式数据</span>
     </div>
   {:else if $stylesQuery.isError}
     <Alert color="red">无法加载样式列表，请确认后端已启动（端口 4000）</Alert>
@@ -164,12 +165,18 @@
     </Alert>
   {:else}
     {#if hasFilter}
-      <div class="text-sm text-gray-600">
-        共 {($stylesQuery.data ?? []).length} 条结果
+      <div
+        id="style-result-count"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        class="text-sm text-gray-600"
+      >
+        共 {($stylesQuery.data ?? []).length} 条符合筛选条件的结果
       </div>
     {/if}
     <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-      <Table hoverable>
+      <Table hoverable aria-describedby={hasFilter ? 'style-result-count' : undefined}>
         <TableHead>
           <TableHeadCell>城市/街区</TableHeadCell>
           <TableHeadCell>材质</TableHeadCell>
