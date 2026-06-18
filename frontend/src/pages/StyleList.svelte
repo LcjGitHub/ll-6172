@@ -15,13 +15,17 @@
     Card,
   } from 'flowbite-svelte';
   import { fetchHousenoStyles, fetchHousenoStyleMaterials, fetchTags, createHousenoStyle } from '../lib/api';
-  import type { HousenoStyleInput } from '../lib/types';
+  import type { HousenoStyleInput, SortField, SortOrder } from '../lib/types';
 
   let selectedTagId = $state<number | ''>('');
   let selectedMaterial = $state<string>('');
   let selectedUnified = $state<string>('');
   let keywordInput = $state<string>('');
   let debouncedKeyword = $state<string>('');
+  let sortField = $state<SortField | undefined>(undefined);
+  let sortOrder = $state<SortOrder>('asc');
+  let page = $state<number>(1);
+  let pageSize = $state<number>(10);
 
   $effect(() => {
     const value = keywordInput;
@@ -41,7 +45,7 @@
       return;
     }
     void filters;
-    queryClient.resetQueries({ queryKey: ['houseno-styles'] });
+    page = 1;
   });
 
   const hasFilter = $derived(
@@ -62,14 +66,60 @@
   });
 
   const stylesQuery = createQuery({
-    queryKey: ['houseno-styles'],
+    queryKey: ['houseno-styles', { tagId: selectedTagId, material: selectedMaterial, unified: selectedUnified, keyword: debouncedKeyword, sortField, sortOrder, page, pageSize }],
     queryFn: () =>
       fetchHousenoStyles({
         tagId: selectedTagId === '' ? undefined : selectedTagId,
         material: selectedMaterial || undefined,
         unifiedReplacement: selectedUnified === '' ? undefined : selectedUnified === 'true',
         keyword: debouncedKeyword || undefined,
+        sortField,
+        sortOrder,
+        page,
+        pageSize,
       }),
+  });
+
+  function handleSort(field: SortField) {
+    if (sortField === field) {
+      sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortField = field;
+      sortOrder = 'asc';
+    }
+    page = 1;
+  }
+
+  function getSortIcon(field: SortField): string {
+    if (sortField !== field) return '↕';
+    return sortOrder === 'asc' ? '↑' : '↓';
+  }
+
+  const totalPages = $derived(
+    $stylesQuery.data ? Math.ceil($stylesQuery.data.total / pageSize) : 0,
+  );
+
+  function goToPage(p: number) {
+    if (p < 1 || p > totalPages || p === page) return;
+    page = p;
+  }
+
+  const pageNumbers = $derived(() => {
+    const pages: (number | string)[] = [];
+    const total = totalPages;
+    const current = page;
+    if (total <= 7) {
+      for (let i = 1; i <= total; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (current > 3) pages.push('...');
+      const start = Math.max(2, current - 1);
+      const end = Math.min(total - 1, current + 1);
+      for (let i = start; i <= end; i++) pages.push(i);
+      if (current < total - 2) pages.push('...');
+      pages.push(total);
+    }
+    return pages;
   });
 
   function handleTagChange(event: Event) {
@@ -84,6 +134,9 @@
     selectedUnified = '';
     keywordInput = '';
     debouncedKeyword = '';
+    sortField = undefined;
+    sortOrder = 'asc';
+    page = 1;
   }
 
   let showCreateForm = $state(false);
@@ -320,35 +373,44 @@
     </div>
   {:else if $stylesQuery.isError}
     <Alert color="red" role="alert" aria-live="assertive">无法加载样式列表，请确认后端已启动（端口 4000）</Alert>
-  {:else if ($stylesQuery.data ?? []).length === 0}
+  {:else if ($stylesQuery.data?.items ?? []).length === 0}
     <Alert color="yellow" role="status" aria-live="polite">
       {hasFilter
         ? '没有符合筛选条件的样式数据，可清除筛选后重试。'
         : '暂无门牌号样式数据，请运行 npm run seed 初始化。'}
     </Alert>
   {:else}
-    {#if hasFilter}
-      <div
-        id="style-result-count"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        class="text-sm text-gray-600"
-      >
-        共 {($stylesQuery.data ?? []).length} 条符合筛选条件的结果
-      </div>
-    {/if}
+    <div
+      id="style-result-count"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      class="text-sm text-gray-600"
+    >
+      共 {$stylesQuery.data?.total ?? 0} 条记录
+      {#if hasFilter}（符合筛选条件）{/if}
+    </div>
     <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-      <Table hoverable aria-describedby={hasFilter ? 'style-result-count' : undefined}>
+      <Table hoverable aria-describedby="style-result-count">
         <TableHead>
-          <TableHeadCell>城市/街区</TableHeadCell>
-          <TableHeadCell>材质</TableHeadCell>
+          <TableHeadCell class="cursor-pointer select-none hover:bg-gray-50" onclick={() => handleSort('cityDistrict')}>
+            <span class="flex items-center gap-1">
+              城市/街区
+              <span class="text-gray-400">{getSortIcon('cityDistrict')}</span>
+            </span>
+          </TableHeadCell>
+          <TableHeadCell class="cursor-pointer select-none hover:bg-gray-50" onclick={() => handleSort('material')}>
+            <span class="flex items-center gap-1">
+              材质
+              <span class="text-gray-400">{getSortIcon('material')}</span>
+            </span>
+          </TableHeadCell>
           <TableHeadCell>字体</TableHeadCell>
           <TableHeadCell>编号规则</TableHeadCell>
           <TableHeadCell>统一更换</TableHeadCell>
         </TableHead>
         <TableBody>
-          {#each $stylesQuery.data ?? [] as style (style.id)}
+          {#each $stylesQuery.data?.items ?? [] as style (style.id)}
             <TableBodyRow>
               <TableBodyCell>
                 <RouterLink
@@ -377,5 +439,58 @@
         </TableBody>
       </Table>
     </div>
+
+    {#if totalPages > 1}
+      <div class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6">
+        <div class="flex flex-1 justify-between sm:hidden">
+          <Button size="sm" color="alternative" onclick={() => goToPage(page - 1)} disabled={page <= 1}>
+            上一页
+          </Button>
+          <Button size="sm" color="alternative" onclick={() => goToPage(page + 1)} disabled={page >= totalPages}>
+            下一页
+          </Button>
+        </div>
+        <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+          <div>
+            <p class="text-sm text-gray-700">
+              第 <span class="font-medium">{page}</span> 页，
+              共 <span class="font-medium">{totalPages}</span> 页
+            </p>
+          </div>
+          <div>
+            <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+              <button
+                onclick={() => goToPage(page - 1)}
+                disabled={page <= 1}
+                class="relative inline-flex items-center rounded-l-md px-3 py-2 text-sm font-medium text-gray-500 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+              >
+                上一页
+              </button>
+              {#each pageNumbers() as p (p)}
+                {#if p === '...'}
+                  <span class="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 ring-1 ring-inset ring-gray-300">
+                    ...
+                  </span>
+                {:else}
+                  <button
+                    onclick={() => goToPage(p as number)}
+                    class="relative inline-flex items-center px-4 py-2 text-sm font-medium ring-1 ring-inset ring-gray-300 focus:z-20 focus:outline-offset-0 {p === page ? 'z-10 bg-amber-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600' : 'text-gray-500 hover:bg-gray-50'}"
+                  >
+                    {p}
+                  </button>
+                {/if}
+              {/each}
+              <button
+                onclick={() => goToPage(page + 1)}
+                disabled={page >= totalPages}
+                class="relative inline-flex items-center rounded-r-md px-3 py-2 text-sm font-medium text-gray-500 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
+              >
+                下一页
+              </button>
+            </nav>
+          </div>
+        </div>
+      </div>
+    {/if}
   {/if}
 </div>

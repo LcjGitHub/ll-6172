@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import db from '../db';
-import type { HousenoStyle, Tag, HousenoStyleInput } from '../types';
+import type { HousenoStyle, Tag, HousenoStyleInput, PaginatedResult, SortField, SortOrder } from '../types';
 
 const router = Router();
 
@@ -40,11 +40,20 @@ function rowToTag(row: TagDbRow): Tag {
   };
 }
 
+const ALLOWED_SORT_FIELDS: Record<string, string> = {
+  material: 'hs.material',
+  cityDistrict: 'hs.city_district',
+};
+
 router.get('/', (req: Request, res: Response) => {
   const tagId = req.query.tagId;
   const material = req.query.material;
   const unifiedReplacement = req.query.unifiedReplacement;
   const keyword = req.query.keyword;
+  const sortField = req.query.sortField as string | undefined;
+  const sortOrder = req.query.sortOrder as string | undefined;
+  const page = req.query.page;
+  const pageSize = req.query.pageSize;
 
   const conditions: string[] = [];
   const params: (string | number)[] = [];
@@ -71,17 +80,45 @@ router.get('/', (req: Request, res: Response) => {
     params.push(`%${String(keyword)}%`);
   }
 
-  let sql = 'SELECT hs.* FROM houseno_styles hs';
-  if (joinStyleTags) {
-    sql += ' INNER JOIN style_tags st ON hs.id = st.style_id';
+  let orderBy = 'hs.id';
+  let orderDir = 'ASC';
+  if (sortField && ALLOWED_SORT_FIELDS[sortField]) {
+    orderBy = ALLOWED_SORT_FIELDS[sortField];
+    orderDir = sortOrder === 'desc' ? 'DESC' : 'ASC';
   }
-  if (conditions.length > 0) {
-    sql += ` WHERE ${conditions.join(' AND ')}`;
-  }
-  sql += ' ORDER BY hs.id';
 
-  const rows = db.prepare(sql).all(...params) as DbRow[];
-  res.json(rows.map(rowToStyle));
+  const pageNum = page ? Math.max(1, parseInt(String(page), 10) || 1) : 1;
+  const sizeNum = pageSize ? Math.max(1, Math.min(100, parseInt(String(pageSize), 10) || 10)) : 10;
+  const offset = (pageNum - 1) * sizeNum;
+
+  const whereSql = conditions.length > 0 ? ` WHERE ${conditions.join(' AND ')}` : '';
+
+  let countSql = 'SELECT COUNT(*) as count FROM houseno_styles hs';
+  if (joinStyleTags) {
+    countSql += ' INNER JOIN style_tags st ON hs.id = st.style_id';
+  }
+  countSql += whereSql;
+  const countResult = db.prepare(countSql).get(...params) as { count: number };
+  const total = countResult.count;
+
+  let dataSql = 'SELECT hs.* FROM houseno_styles hs';
+  if (joinStyleTags) {
+    dataSql += ' INNER JOIN style_tags st ON hs.id = st.style_id';
+  }
+  dataSql += whereSql;
+  dataSql += ` ORDER BY ${orderBy} ${orderDir}`;
+  dataSql += ' LIMIT ? OFFSET ?';
+
+  const dataParams = [...params, sizeNum, offset];
+  const rows = db.prepare(dataSql).all(...dataParams) as DbRow[];
+
+  const result: PaginatedResult<HousenoStyle> = {
+    items: rows.map(rowToStyle),
+    total,
+    page: pageNum,
+    pageSize: sizeNum,
+  };
+  res.json(result);
 });
 
 router.get('/material-options', (_req: Request, res: Response) => {

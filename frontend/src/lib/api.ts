@@ -1,13 +1,13 @@
 import axios from 'axios';
-import type { HousenoStyle, HousenoStyleInput, HousenoStyleFilter, Favorite, FavoriteWithStyle, Material, StatisticsOverview, VisitRecord, VisitRecordInput, Tag } from './types';
+import type { HousenoStyle, HousenoStyleInput, HousenoStyleFilter, Favorite, FavoriteWithStyle, Material, StatisticsOverview, VisitRecord, VisitRecordInput, Tag, PaginatedResult } from './types';
 
 const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
 });
 
-/** 获取门牌号样式列表（支持材质、统一更换、关键字等组合筛选） */
-export async function fetchHousenoStyles(filter: HousenoStyleFilter = {}): Promise<HousenoStyle[]> {
+/** 获取门牌号样式列表（支持筛选、排序、分页） */
+export async function fetchHousenoStyles(filter: HousenoStyleFilter = {}): Promise<PaginatedResult<HousenoStyle>> {
   const params = new URLSearchParams();
   if (filter.tagId !== undefined) {
     params.set('tagId', String(filter.tagId));
@@ -21,9 +21,21 @@ export async function fetchHousenoStyles(filter: HousenoStyleFilter = {}): Promi
   if (filter.keyword) {
     params.set('keyword', filter.keyword);
   }
+  if (filter.sortField) {
+    params.set('sortField', filter.sortField);
+  }
+  if (filter.sortOrder) {
+    params.set('sortOrder', filter.sortOrder);
+  }
+  if (filter.page !== undefined) {
+    params.set('page', String(filter.page));
+  }
+  if (filter.pageSize !== undefined) {
+    params.set('pageSize', String(filter.pageSize));
+  }
   const query = params.toString();
   const url = query ? `/houseno-styles?${query}` : '/houseno-styles';
-  const { data } = await api.get<HousenoStyle[]>(url);
+  const { data } = await api.get<PaginatedResult<HousenoStyle>>(url);
   return data;
 }
 
@@ -128,6 +140,6 @@ export async function unbindStyleTag(styleId: number, tagId: number): Promise<Ta
 }
 
 /** 按标签筛选获取样式列表 */
-export async function fetchHousenoStylesByTag(tagId?: number): Promise<HousenoStyle[]> {
+export async function fetchHousenoStylesByTag(tagId?: number): Promise<PaginatedResult<HousenoStyle>> {
   return fetchHousenoStyles(tagId === undefined ? {} : { tagId });
 }

@@ -89,3 +89,17 @@ export interface StyleTag {
   tagId: number;
   createdAt: string;
 }
+
+/** 分页结果 */
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** 排序字段 */
+export type SortField = 'material' | 'cityDistrict';
+
+/** 排序方向 */
+export type SortOrder = 'asc' | 'desc';

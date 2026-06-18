@@ -27,6 +27,28 @@ export interface HousenoStyleFilter {
   unifiedReplacement?: boolean;
   /** 按城市/街区关键字模糊搜索 */
   keyword?: string;
+  /** 排序字段 */
+  sortField?: SortField;
+  /** 排序方向 */
+  sortOrder?: SortOrder;
+  /** 页码，从 1 开始 */
+  page?: number;
+  /** 每页条数 */
+  pageSize?: number;
+}
+
+/** 排序字段 */
+export type SortField = 'material' | 'cityDistrict';
+
+/** 排序方向 */
+export type SortOrder = 'asc' | 'desc';
+
+/** 分页结果 */
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 /** 收藏记录 */
